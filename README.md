@@ -33,6 +33,36 @@ properly set rather than as raw `\(...\)` source.
 Select any document and a **Read** button appears in the Finder toolbar. It is also
 in the Preview title bar, in Quick Look, in column view, and on right-click.
 
+## Read Aloud
+
+The [ebook-reader](https://github.com/nothing17777/ebook-reader) project runs as an
+app inside the desktop: text-to-speech with word-level highlighting that follows
+along as it speaks, adjustable speed and voice, and OCR for scanned pages.
+
+![Read Aloud](docs/screenshots/read-aloud.png)
+
+It originally took PDFs, Markdown and images. It now reads **HTML** too, so class
+summaries saved as web pages can be listened to: the page is parsed, stripped of
+scripts and navigation chrome, sanitised, and laid out as flowing text with every
+word clickable — click any word to start speaking from there.
+
+Select a file and press the speaker button in the Finder toolbar, or right-click ▸
+**Read Aloud**. OCR for scanned documents downloads its language data on first use,
+so that part needs a connection; everything else works offline.
+
+## Importing files
+
+Drag files onto any Finder window — or onto the desktop — and they are **saved into
+that folder on disk**, not just held in the browser. The sidebar updates straight
+away and the files are still there next time you open it.
+
+Also available as **File ▸ Import Files…** (<kbd>⌘I</kbd>), and **File ▸ New Class
+Folder…** (<kbd>⌘⇧N</kbd>) to make a folder for a new class.
+
+Uploads go to a small local endpoint in `.finder/serve.py`, which accepts document
+and image types only, rejects paths outside the project, and listens on `127.0.0.1`
+so nothing is reachable from outside your machine.
+
 ## Browsing
 
 Finder has a sidebar of Favorites, Classes and Tags; icon, list and column views;
@@ -92,6 +122,8 @@ New files show up after a rescan — **View ▸ Rescan Files**, <kbd>⌘R</kbd>,
 | <kbd>⌘K</kbd> / <kbd>⌘Space</kbd> | Spotlight |
 | <kbd>⌘N</kbd> | New Finder window |
 | <kbd>⌘B</kbd> | Books |
+| <kbd>⌘I</kbd> | Import files |
+| <kbd>⌘⇧N</kbd> | New class folder |
 | <kbd>⌘1</kbd> <kbd>⌘2</kbd> <kbd>⌘3</kbd> | Icon / List / Column view |
 | <kbd>Space</kbd> | Quick Look |
 | <kbd>⌘W</kbd> / <kbd>⌘M</kbd> | Close / minimise |
@@ -106,6 +138,7 @@ The desktop can be opened in a given state, which is handy for bookmarks:
 #read=cs%20cm121/Error%20or%20SNP.html open a document in the reader
 #open=<path>                           open it in Preview
 #app=books                             open the Books library
+#aloud=<path>                          open a document in Read Aloud
 #find=bayes                            open Spotlight on a query
 #dark=1&wall=sonoma                    set appearance and wallpaper
 ```
@@ -116,6 +149,8 @@ The desktop can be opened in a given state, which is handy for bookmarks:
 index.html            the desktop
 open-mac.command      launcher
 .finder/app.js        window manager, Finder, Books, readers
+.finder/serve.py      static server + upload/rescan endpoints
+.finder/apps/reader/  the ebook-reader app (TTS, OCR, HTML support)
 .finder/style.css     styling
 .finder/scan.py       builds manifest.json from your folders
 .finder/icons/        Lucide icons
@@ -129,8 +164,11 @@ appearance live in `localStorage`.
 
 ## Credits
 
+[ebook-reader](https://github.com/nothing17777/ebook-reader) ·
 [Lucide](https://lucide.dev) icons (ISC) · [epub.js](https://github.com/futurepress/epub.js) (BSD-2)
 · [KaTeX](https://katex.org) (MIT) · [marked](https://marked.js.org) (MIT)
 · [mammoth.js](https://github.com/mwilliamson/mammoth.js) (BSD-2) · [JSZip](https://stuk.github.io/jszip/) (MIT)
+· [pdf.js](https://mozilla.github.io/pdf.js/) (Apache-2) · [Tesseract.js](https://tesseract.projectnaptha.com) (Apache-2)
+· [DOMPurify](https://github.com/cure53/DOMPurify) (Apache-2/MPL) · [Tailwind](https://tailwindcss.com) (MIT)
 
 Not affiliated with Apple. The interface is an homage; no Apple assets are used.

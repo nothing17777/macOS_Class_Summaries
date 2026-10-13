@@ -24,7 +24,10 @@ const EXT = {
   xlsx:{g:'file-chart-column',c:'#30d158',t:'Spreadsheet'}, csv:{g:'file-chart-column',c:'#30d158',t:'CSV'},
   epub:{g:'book',c:'#bf5af2',t:'EPUB Book'}, tex:{g:'file-code-2',c:'#64d2ff',t:'LaTeX'},
   pages:{g:'file-text',c:'#ff9f0a',t:'Pages'}, key:{g:'file-text',c:'#ff6482',t:'Keynote'},
-  numbers:{g:'file-chart-column',c:'#30d158',t:'Numbers'}
+  numbers:{g:'file-chart-column',c:'#30d158',t:'Numbers'},
+  png:{g:'image',c:'#64d2ff',t:'PNG Image'}, jpg:{g:'image',c:'#64d2ff',t:'JPEG Image'},
+  jpeg:{g:'image',c:'#64d2ff',t:'JPEG Image'}, webp:{g:'image',c:'#64d2ff',t:'WebP Image'},
+  gif:{g:'image',c:'#64d2ff',t:'GIF Image'}
 };
 const glyph = (i,cls) => i.kind==='folder'
   ? ico('folder',(cls||'')+' folderic','#3b9dff')
@@ -200,6 +203,8 @@ function openFinder(path){
       <button data-v="col"  title="Columns">◫</button>
     </div>
     <button class="btn rd finder-read" style="display:none">${ico('book-open','sm')}Read</button>
+    <button class="btn sec finder-aloud" title="Read aloud" style="display:none">${ico('volume-2','sm')}</button>
+    <button class="btn sec finder-import" title="Import files…">${ico('file-down','sm')}</button>
     <div class="search">${ico('search','sm')}<input placeholder="Search"></div>`;
   $('.nav.b',win.el).onclick=()=>{ if(win.nav.i>0){win.nav.i--; renderFinder(win);} };
   $('.nav.f',win.el).onclick=()=>{ if(win.nav.i<win.nav.hist.length-1){win.nav.i++; renderFinder(win);} };
@@ -207,6 +212,8 @@ function openFinder(path){
     win.nav.view=b.dataset.v; save('view',b.dataset.v); renderFinder(win); });
   const si=$('.search input',win.el);
   si.oninput=()=>{ win.nav.q=si.value.trim(); renderFinder(win); };
+  dropTarget(win.el, ()=> win.nav.special? '' : (win.nav.hist[win.nav.i]||''));
+  $('.finder-import',win.el).onclick=()=>importDialog(win.nav.special?'':(win.nav.hist[win.nav.i]||''));
   renderSidebar(win); renderFinder(win);
   return win;
 }
@@ -270,6 +277,7 @@ function renderFinder(win){
   $$('.segmented button',win.el).forEach(b=>b.classList.toggle('on',b.dataset.v===n.view));
   markSidebar(win);
   const rb=$('.finder-read',win.el); if(rb) rb.style.display='none';
+  const ab=$('.finder-aloud',win.el); if(ab) ab.style.display='none';
   const items=currentItems(win);
   pane.className='pane'; pane.innerHTML='';
   if(n.view==='col' && !n.special && !n.q){ pane.style.padding='0'; renderCols(win,pane); }
@@ -302,6 +310,8 @@ function selectIn(win,i,node,cls){
   node.classList.add('sel'); S.qlItem=i;
   const rb=$('.finder-read',win.el);
   if(rb){ rb.style.display = readable(i)?'inline-flex':'none'; rb.onclick=()=>openReader(i); }
+  const ab=$('.finder-aloud',win.el);
+  if(ab){ ab.style.display = ALOUD_OK(i)?'inline-flex':'none'; ab.onclick=()=>openAloud(i); }
 }
 function renderIcons(win,pane,items){
   const g=el('div','grid'); pane.appendChild(g);
@@ -432,6 +442,12 @@ async function renderInto(node, item){
           <tbody>${rows.slice(1).map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('')}</tbody></table></div>`;
       } else node.innerHTML=`<div class="doc"><pre style="white-space:pre-wrap">${esc(t)}</pre></div>`;
       return;
+    }
+    if(['png','jpg','jpeg','webp','gif'].includes(e)){
+      node.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;
+        height:100%;padding:22px;background:var(--win-bg)">
+        <img src="${u}" style="max-width:100%;max-height:100%;border-radius:8px;
+          box-shadow:0 8px 28px rgba(0,0,0,.25)"></div>`; return;
     }
     if(e==='docx'){
       await need('./.finder/vendor/mammoth.browser.min.js','mammoth');
@@ -663,6 +679,8 @@ async function openReader(book){
 const MENUS = {
   finder:{name:'Finder', menus:{
     File:[['New Finder Window','⌘N',()=>openFinder(null)],['Open Books','⌘B',()=>openBooks()],
+          ['Import Files…','⌘I',()=>importDialog(S.active?.nav?(S.active.nav.hist[S.active.nav.i]||''):'')],
+          ['New Class Folder…','⌘⇧N',()=>newFolder()],
           ['Read Selected','⌘⇧O',()=>S.qlItem&&readable(S.qlItem)&&openReader(S.qlItem)],'-',
           ['Close Window','⌘W',()=>S.active&&closeWin(S.active)]],
     Edit:[['Select All','⌘A',()=>{}],'-',['Find…','⌘F',()=>{const w=$('.search input',S.active?.el||document); w&&w.focus();}]],
@@ -674,6 +692,9 @@ const MENUS = {
   books:{name:'Books', menus:{
     File:[['Library','⌘L',()=>openBooks()],'-',['Close','⌘W',()=>S.active&&closeWin(S.active)]],
     View:[['Larger Text','⌘+',()=>{}],['Smaller Text','⌘−',()=>{}]],
+  }},
+  aloud:{name:'Read Aloud', menus:{
+    File:[['Open a File…','',()=>openAloud()],'-',['Close','⌘W',()=>S.active&&closeWin(S.active)]],
   }},
   preview:{name:'Preview', menus:{
     File:[['Close','⌘W',()=>S.active&&closeWin(S.active)]],
@@ -712,6 +733,7 @@ function ctxMenu(e,win,item){
     add('Open', ()=>win?.nav? activate(win,item) : openDoc(item));
     if(item.kind==='file'){ add('Quick Look', ()=>quickLook(item));
       if(readable(item)) add('Read in Books', ()=>openReader(item));
+      if(ALOUD_OK(item)) add('Read Aloud', ()=>openAloud(item));
       add('Open in Preview', ()=>openDoc(item)); }
     c.appendChild(el('div','sep'));
     add(S.tags[item.path]?'Remove from Starred':'Add to Starred',
@@ -724,6 +746,9 @@ function ctxMenu(e,win,item){
     c.appendChild(el('div','sep'));
     add('Get Info', ()=>infoWin(item));
   } else {
+    add('Import Files…', ()=>importDialog(''));
+    add('New Class Folder…', ()=>newFolder());
+    c.appendChild(el('div','sep'));
     add('New Finder Window', ()=>openFinder(null));
     add('Open Books', ()=>openBooks());
     c.appendChild(el('div','sep'));
@@ -753,6 +778,7 @@ document.addEventListener('click',()=>{const c=$('#ctx'); if(c)c.style.display='
 const DOCK=[
   {id:'finder',ico:'folder-open',bg:'linear-gradient(180deg,#5ac8fa,#0a84ff)',nm:'Finder',fn:()=>openFinder(null)},
   {id:'books',ico:'library',bg:'linear-gradient(180deg,#ffb340,#ff9500)',nm:'Books',fn:()=>openBooks()},
+  {id:'aloud',ico:'volume-2',bg:'linear-gradient(180deg,#ff9f0a,#ff375f)',nm:'Read Aloud',fn:()=>openAloud()},
   {id:'launch',ico:'rocket',bg:'linear-gradient(180deg,#8e8e93,#48484a)',nm:'Launchpad',fn:()=>toggleLaunchpad()},
   {id:'spot',ico:'search',bg:'linear-gradient(180deg,#d1d1d6,#8e8e93)',nm:'Spotlight',fn:()=>openSpotlight()},
   {id:'recent',ico:'clock',bg:'linear-gradient(180deg,#636366,#1c1c1e)',nm:'Recents',fn:()=>{const w=openFinder(null); goto(w,null,'recents');}},
@@ -803,6 +829,8 @@ function spotResults(q){
   let hits = ql? S.flat.filter(i=>i.name.toLowerCase().includes(ql)).slice(0,9)
                : S.recents.map(p=>S.byPath[p]).filter(Boolean).slice(0,6);
   const acts=[];
+  if(ql && ('read aloud'.includes(ql)||'aloud'.includes(ql)||'speak'.includes(ql)||'tts'.includes(ql)))
+    acts.push({ico:ico('volume-2','','#ff9f0a'),nm:'Read Aloud',sub:'Application',fn:()=>openAloud()});
   if(ql && 'books'.includes(ql)) acts.push({ico:ico('library','','#bf5af2'),nm:'Books',sub:'Application',fn:openBooks});
   if(ql && ('dark'.includes(ql)||'appearance'.includes(ql))) acts.push({ico:ico('moon','','#5e5ce6'),nm:'Toggle Appearance',sub:'System',fn:toggleDark});
   if(ql && 'wallpaper'.includes(ql)) acts.push({ico:ico('image','','#30d158'),nm:'Change Wallpaper',sub:'System',fn:cycleWall});
@@ -842,6 +870,7 @@ function toggleLaunchpad(){
   const apps=[
     A('folder-open','linear-gradient(180deg,#5ac8fa,#0a84ff)','Finder',()=>openFinder(null)),
     A('library','linear-gradient(180deg,#ffb340,#ff9500)','Books',()=>openBooks()),
+    A('volume-2','linear-gradient(180deg,#ff9f0a,#ff375f)','Read Aloud',()=>openAloud()),
     A('search','linear-gradient(180deg,#d1d1d6,#8e8e93)','Spotlight',openSpotlight),
     A('clock','linear-gradient(180deg,#636366,#1c1c1e)','Recents',()=>goto(openFinder(null),null,'recents')),
     A('star','linear-gradient(180deg,#ffd60a,#ff9f0a)','Starred',()=>goto(openFinder(null),null,'starred')),
@@ -880,6 +909,8 @@ document.addEventListener('keydown',e=>{
   if(cmd&&e.code==='Space'){e.preventDefault(); openSpotlight();}
   if(cmd&&e.key.toLowerCase()==='n'){e.preventDefault(); openFinder(null);}
   if(cmd&&e.key.toLowerCase()==='b'){e.preventDefault(); openBooks();}
+  if(cmd&&e.key.toLowerCase()==='i'){e.preventDefault();
+    importDialog(S.active?.nav?(S.active.nav.hist[S.active.nav.i]||''):'');}
   if(cmd&&e.key.toLowerCase()==='w'){e.preventDefault(); S.active&&closeWin(S.active);}
   if(cmd&&e.key.toLowerCase()==='m'){e.preventDefault(); S.active&&minWin(S.active);}
   if(cmd&&['1','2','3'].includes(e.key)){e.preventDefault(); setView({1:'icon',2:'list',3:'col'}[e.key]);}
@@ -930,6 +961,7 @@ async function boot(){
     return;
   }
   setMenuApp('finder'); renderDesktop();
+  dropTarget($('#desktop'), ()=>'');
   const q=new URLSearchParams(location.hash.slice(1));
   if(q.get('dark')==='1'&&!S.dark){ S.dark=true; save('dark','1'); applyTheme(); }
   if(q.get('wall')) { S.wall=q.get('wall'); save('wall',S.wall); drawWall(); }
@@ -942,10 +974,12 @@ async function boot(){
   if(app==='books'){ openBooks(); }
   else { const w=openFinder(folder||null); if(folder) goto(w,folder); }
   if(read && S.byPath[read]) openReader(S.byPath[read]);
+  const aloud=q.get('aloud');
+  if(aloud!=null) openAloud(S.byPath[aloud]||null);
   if(open_ && S.byPath[open_]) openDoc(S.byPath[open_]);
   if(q.get('find')!=null){ openSpotlight(); const si=$('#spotin'); si.value=q.get('find'); spotResults(si.value); }
   if(q.get('launchpad')==='1') toggleLaunchpad();
-  if(!read && !open_ && !app)
+  if(!read && !open_ && !app && q.get('aloud')==null)
     setTimeout(()=>notify('Welcome', S.flat.filter(i=>i.kind==='file').length+' notes · ⌘K to search'),900);
 }
 document.addEventListener('DOMContentLoaded',boot);
@@ -1078,4 +1112,90 @@ async function openDocReader(doc){
   const ro=new ResizeObserver(()=>applyR()); ro.observe(stage);
   applyR(); setTimeout(applyR,120); win.el.focus();
   return win;
+}
+
+/* ===== Read Aloud (ebook-reader app, embedded) ===== */
+const ALOUD_OK = i => i.kind==='file' &&
+  ['pdf','html','htm','md','markdown','txt','png','jpg','jpeg','webp'].includes(i.ext);
+
+function openAloud(item){
+  const win=makeWin({title:item?item.name:'Read Aloud', app:'aloud', w:1060, h:730});
+  $('.title',win.el).innerHTML=ico('volume-2','ti','#ff9f0a')+(item?esc(item.name):'Read Aloud');
+  win.body.innerHTML=`<iframe class="aloud" src="./.finder/apps/reader/index.html"
+     allow="autoplay" title="Read Aloud"></iframe>`;
+  const frame=$('.aloud',win.el);
+  if(item){
+    remember(item.path);
+    const send=async()=>{
+      try{
+        const buf=await (await fetch(url(item.path))).arrayBuffer();
+        frame.contentWindow.postMessage({type:'open-file', name:item.name,
+          mime:({pdf:'application/pdf',html:'text/html',htm:'text/html',md:'text/markdown',
+                 txt:'text/plain'})[item.ext]||'', buffer:buf},'*');
+      }catch(e){ notify('Read Aloud','Could not load '+item.name); }
+    };
+    const onReady=e=>{ if(e.source===frame.contentWindow && e.data?.type==='reader-ready'){
+      removeEventListener('message',onReady); send(); } };
+    addEventListener('message',onReady);
+    frame.addEventListener('load',()=>setTimeout(send,400));
+  }
+  return win;
+}
+
+/* ===== importing files into the directory ===== */
+let UPLOAD_OK = true;   // false when served by a plain static server
+async function uploadFiles(fileList, folder){
+  const files=[...fileList]; if(!files.length) return;
+  const fd=new FormData(); fd.append('folder', folder||'');
+  files.forEach(f=>fd.append('files', f, f.name));
+  notify('Importing', files.length===1? files[0].name : files.length+' files…');
+  try{
+    const r=await fetch('./__upload',{method:'POST',body:fd});
+    if(!r.ok) throw new Error('server said '+r.status);
+    const j=await r.json();
+    await rescanQuiet();
+    const where = folder || 'class_summaries';
+    if(j.saved?.length) notify('Imported', j.saved.length+' file'+(j.saved.length===1?'':'s')+' → '+where);
+    if(j.skipped?.length) notify('Skipped', j.skipped.map(s=>s.name+' ('+s.why+')').join(', '));
+    return j;
+  }catch(e){
+    UPLOAD_OK=false;
+    notify('Import failed','Run ./open-mac.command so files can be saved');
+  }
+}
+async function rescanQuiet(){
+  await loadManifest(); renderDesktop();
+  S.wins.forEach(w=>{ if(w.nav){renderSidebar(w); renderFinder(w);}
+                      if(w.app==='books' && $('.bookgrid',w.el)) shelf(w,S.books); });
+}
+function importDialog(folder){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.multiple=true;
+  inp.accept='.pdf,.html,.htm,.docx,.md,.markdown,.txt,.csv,.rtf,.epub,.pptx,.xlsx,.tex,.png,.jpg,.jpeg,.webp';
+  inp.onchange=()=>uploadFiles(inp.files, folder);
+  inp.click();
+}
+async function newFolder(){
+  const name=prompt('New class folder name:');
+  if(!name) return;
+  try{
+    const r=await fetch('./__mkdir',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({path:name})});
+    const j=await r.json();
+    if(j.error) throw new Error(j.error);
+    await rescanQuiet(); notify('Finder','Created “'+name+'”');
+  }catch(e){ notify('Could not create folder', e.message||'check the name'); }
+}
+
+/* drag & drop onto any Finder window, or the desktop */
+function dropTarget(node, folderFn){
+  let depth=0;
+  node.addEventListener('dragover',e=>{ e.preventDefault(); e.dataTransfer.dropEffect='copy'; });
+  node.addEventListener('dragenter',e=>{ e.preventDefault(); if(depth++===0) node.classList.add('dropping'); });
+  node.addEventListener('dragleave',()=>{ if(--depth<=0){depth=0; node.classList.remove('dropping');} });
+  node.addEventListener('drop',e=>{
+    e.preventDefault(); e.stopPropagation(); depth=0; node.classList.remove('dropping');
+    const files=e.dataTransfer?.files;
+    if(files?.length) uploadFiles(files, folderFn());
+  });
 }

@@ -6,7 +6,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKIP_DIRS = {'.finder', '.git', '__pycache__', '.DS_Store'}
 SKIP_FILES = {'index.html', 'open-mac.command', 'README.md'}
 DOC_EXTS = {'.pdf', '.html', '.htm', '.docx', '.doc', '.md', '.markdown', '.txt',
-            '.rtf', '.pptx', '.ppt', '.xlsx', '.csv', '.epub', '.tex', '.pages', '.key', '.numbers'}
+            '.rtf', '.pptx', '.ppt', '.xlsx', '.csv', '.epub', '.tex', '.pages', '.key', '.numbers',
+            '.png', '.jpg', '.jpeg', '.webp', '.gif'}
 
 def walk(rel):
     absd = os.path.join(ROOT, rel) if rel else ROOT
@@ -17,7 +18,11 @@ def walk(rel):
         p = os.path.join(absd, name)
         r = os.path.join(rel, name) if rel else name
         if os.path.isdir(p):
+            if not rel and name == 'docs':
+                continue          # the project's own README screenshots, not your notes
             kids = walk(r)
+            if not kids:
+                continue          # hide folders with nothing readable in them
             items.append({'name': name, 'path': r, 'kind': 'folder', 'children': kids,
                           'count': len(kids), 'mtime': os.path.getmtime(p)})
         else:

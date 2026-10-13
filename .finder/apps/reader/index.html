@@ -1,0 +1,1996 @@
+<!doctype html>
+<html lang="en" class="h-full bg-[#F7F3EE] text-stone-900">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eBook Reader - Premium TTS & OCR Reader</title>
+    
+    <!-- Google Fonts for typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="../../vendor/tailwind.min.js"></script>
+    
+    <!-- PDF.js CDN -->
+    <script src="../../vendor/pdf.min.js"></script>
+    
+    <!-- Tesseract.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.5/tesseract.min.js"></script>
+    
+    <!-- Markdown parser + sanitizer -->
+    <script src="../../vendor/marked.min.js"></script>
+    <script src="../../vendor/purify.min.js"></script>
+
+    <!-- Lucide Icons CDN -->
+    <script src="../../vendor/lucide.min.js"></script>
+    
+    <!-- Tailwind Config for typography pairing and custom theme extension -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              editorial: {
+                paper: '#F7F3EE',      // Soft warm paper beige
+                sidebar: '#F0EDE8',    // Muted grey-sandstone sidebar
+                canvas: '#FDFBF7',     // Pure book-page ivory
+                divider: 'rgba(0,0,0,0.08)',
+                text: '#1A1A1A',
+                muted: '#8C8882',
+                border: '#D1CDC7'
+              }
+            },
+            fontFamily: {
+              sans: ['"DM Sans"', 'sans-serif'],
+              serif: ['"Lora"', 'serif'],
+            }
+          }
+        }
+      }
+    </script>
+    
+    <style>
+      /* Smooth transitions */
+      .fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      
+      /* Word hover and selection highlights */
+      .word {
+        position: relative;
+        display: inline-block;
+        border-radius: 0.125rem;
+        transition: all 150ms ease-in-out;
+      }
+      .word:hover {
+        background-color: #E0DCD6 !important;
+        color: #1A1A1A !important;
+      }
+      
+      /* Active word highlight */
+      .word-highlight {
+        background-color: #FDE68A !important; /* Editorial amber/yellow pastel */
+        color: #000000 !important;
+        box-shadow: 0 0 0 2px #FDE68A;
+        font-weight: 500;
+        transform: scale(1.02);
+      }
+      
+      /* Markdown reader */
+      .md-body { font-family: 'Lora', serif; font-size: 1.05rem; line-height: 1.8; color: #1A1A1A; max-width: 760px; margin: 0 auto; padding: 0.5rem 0.75rem; text-align: left; }
+      .md-body h1, .md-body h2, .md-body h3, .md-body h4 { font-family: 'DM Sans', sans-serif; font-weight: 700; line-height: 1.25; margin: 1.6em 0 0.6em; }
+      .md-body h1 { font-size: 1.9rem; } .md-body h2 { font-size: 1.5rem; } .md-body h3 { font-size: 1.2rem; }
+      .md-body p, .md-body ul, .md-body ol, .md-body blockquote, .md-body pre, .md-body table { margin: 0 0 1em; }
+      .md-body ul { list-style: disc; padding-left: 1.6em; } .md-body ol { list-style: decimal; padding-left: 1.6em; }
+      .md-body blockquote { border-left: 3px solid #D1CDC7; padding-left: 1em; color: #57534e; font-style: italic; }
+      .md-body code { background: #F0EDE8; padding: 0.1em 0.35em; border-radius: 3px; font-size: 0.9em; }
+      .md-body pre { background: #F0EDE8; padding: 1em; border-radius: 4px; overflow-x: auto; }
+      .md-body pre code { background: none; padding: 0; }
+      .md-body a { color: #92400e; text-decoration: underline; }
+      .md-body img { max-width: 100%; }
+      .md-body hr { border: 0; border-top: 1px solid #D1CDC7; margin: 1.5em 0; }
+      .md-body table { border-collapse: collapse; } .md-body th, .md-body td { border: 1px solid #D1CDC7; padding: 0.3em 0.6em; }
+      .md-word { cursor: pointer; border-radius: 3px; transition: background-color 120ms; }
+      .md-word:hover { background-color: #E0DCD6; }
+      .md-word.md-line { background-color: rgba(250, 199, 117, 0.22); }
+      .md-word.md-active { background-color: rgba(250, 199, 117, 0.55); color: #1A1A1A; box-shadow: 0 0 0 2px rgba(250, 199, 117, 0.55); }
+
+      /* Custom scrollbar for beautiful margins */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 9999px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+    </style>
+  </head>
+  <body class="font-sans antialiased h-full flex flex-col justify-between bg-[#F7F3EE]">
+
+    <!-- Header Navigation in Editorial Aesthetic theme -->
+    <header class="bg-[#F7F3EE] text-stone-900 h-16 px-6 md:px-8 border-b border-black/10 shrink-0 flex items-center">
+      <div class="max-w-7xl w-full mx-auto flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="p-1.5 bg-stone-900 text-[#FDFBF7] rounded">
+            <i data-lucide="book-open" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h1 class="text-base font-bold tracking-tight uppercase text-stone-950 font-sans">eBook Reader</h1>
+            <p id="top-filename" class="text-[11px] font-semibold text-emerald-800 tracking-wide truncate max-w-[180px] sm:max-w-[320px] md:max-w-md hidden" style="line-height: normal;"></p>
+          </div>
+        </div>
+        <div id="header-reset" class="hidden">
+          <button id="btn-reset-header" class="flex items-center space-x-1 px-4 py-2 bg-stone-950 hover:bg-stone-800 text-white rounded transition text-xs font-semibold shadow-sm">
+            <i data-lucide="file-plus" class="w-4 h-4 mr-1"></i>
+            <span>New file</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Workspaces -->
+    <main class="flex-grow flex flex-col justify-center max-w-7xl w-full mx-auto p-4 md:p-8">
+      
+      <!-- STEP 1: UPLOAD / LANDING SCREEN (Editorial paper style) -->
+      <section id="workspace-upload" class="bg-[#FDFBF7] rounded border border-[#D1CDC7] p-8 md:p-12 shadow-sm max-w-2xl w-full mx-auto text-center space-y-8 fade-in">
+        <div class="space-y-3">
+          <div class="inline-flex p-3.5 bg-stone-100 text-stone-850 rounded-full mb-1">
+            <i data-lucide="sparkles" class="w-8 h-8"></i>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-bold tracking-tight text-stone-900 font-sans uppercase">Bring Your Book to Life</h2>
+          <p class="text-[#8C8882] max-w-md mx-auto text-sm md:text-base leading-relaxed">
+            Upload PDFs, HTML pages, Markdown files or images. Our smart engine extracts the text (with OCR if scanned) and reads it aloud with synchronous, layout-aware highlighting.
+          </p>
+        </div>
+
+        <!-- Drag & Drop Zone (Editorial Style) -->
+        <div id="drop-zone" class="border border-dashed border-[#D1CDC7] hover:border-stone-900 bg-[#F0EDE8]/20 hover:bg-[#F0EDE8]/45 rounded p-8 md:p-12 cursor-pointer transition text-center group">
+          <input type="file" id="file-input" class="hidden" accept=".pdf,.html,.htm,.md,.markdown,.txt,application/pdf,text/html,text/markdown,text/plain,image/*" />
+          <div class="flex flex-col items-center space-y-4">
+            <div class="p-4 bg-stone-100 group-hover:bg-[#F0EDE8] rounded text-[#8C8882] transition shadow-sm border border-stone-200/50">
+              <i data-lucide="cloud-upload" class="w-7 h-7 text-stone-700"></i>
+            </div>
+            <div>
+              <span class="block text-stone-900 font-bold group-hover:text-stone-950 transition text-sm uppercase tracking-wide">Drag & drop your file here</span>
+              <span class="block text-[#8C8882] text-xs mt-1">Accepts PDF, HTML, Markdown (.md), Text, Image (PNG, JPG, WEBP)</span>
+            </div>
+            <button class="px-5 py-2.5 bg-[#1A1A1A] hover:bg-stone-800 text-[#FDFBF7] rounded transition font-semibold text-xs tracking-wide uppercase">
+              Browse Files
+            </button>
+          </div>
+        </div>
+
+        <!-- Paste markdown / text -->
+        <div class="text-left space-y-2">
+          <label for="paste-input" class="block text-xs font-bold uppercase tracking-wide text-stone-800">Or paste markdown / text</label>
+          <textarea id="paste-input" rows="5" placeholder="Paste your .md or plain text here (or just press Ctrl/Cmd+V anywhere on this screen)..." class="w-full bg-white border border-[#D1CDC7] rounded p-3 text-sm text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900 font-mono"></textarea>
+          <button id="btn-read-pasted" class="px-5 py-2.5 bg-[#1A1A1A] hover:bg-stone-800 text-[#FDFBF7] rounded transition font-semibold text-xs tracking-wide uppercase">Read pasted text</button>
+        </div>
+
+        <!-- Extra Info Notes -->
+        <div class="grid grid-cols-2 gap-4 text-left pt-2">
+          <div class="flex items-start space-x-2.5 p-3 rounded bg-[#F0EDE8]/40 border border-[#D1CDC7]/40">
+            <div class="text-[#8C8882] mt-0.5">
+              <i data-lucide="cpu" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-stone-800 uppercase tracking-wide">Client-Side OCR</h4>
+              <p class="text-[11px] text-[#8C8882] mt-0.5 leading-relaxed">Scanned pages are deciphered locally using Tesseract.js engine.</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-2.5 p-3 rounded bg-[#F0EDE8]/40 border border-[#D1CDC7]/40">
+            <div class="text-[#8C8882] mt-0.5">
+              <i data-lucide="shield-check" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-stone-800 uppercase tracking-wide">100% Secure & Offline</h4>
+              <p class="text-[11px] text-[#8C8882] mt-0.5 leading-relaxed">Files never touch a server. All processing is processed in your browser.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 2: PROCESSING SCREEN -->
+      <section id="workspace-processing" class="hidden bg-[#FDFBF7] rounded border border-[#D1CDC7] p-8 md:p-12 shadow-sm max-w-md w-full mx-auto text-center space-y-6 fade-in">
+        <div class="space-y-2">
+          <div class="inline-flex p-3 bg-[#F0EDE8] text-stone-800 animate-pulse rounded-full mb-1">
+            <i data-lucide="loader-2" class="w-7 h-7 animate-spin"></i>
+          </div>
+          <h3 class="text-lg font-bold uppercase tracking-wider text-stone-900">Processing Document</h3>
+          <p id="processing-file-name" class="text-[#8C8882] text-xs truncate max-w-xs mx-auto font-medium"></p>
+        </div>
+
+        <!-- Thumbnail Holder for processing feedback -->
+        <div id="processing-thumbnail" class="flex justify-center my-4 hidden"></div>
+
+        <!-- Progress Bar -->
+        <div class="space-y-2">
+          <div class="w-full bg-[#E0DCD6] rounded-full h-1.5 overflow-hidden">
+            <div id="progress-bar-fill" class="bg-[#1A1A1A] h-full w-0 transition-all duration-300 rounded-full"></div>
+          </div>
+          <div class="flex justify-between text-[11px] text-[#8C8882] font-semibold tracking-wider">
+            <span id="processing-stage" class="uppercase">Analyzing structure...</span>
+            <span id="processing-pct">0%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ERROR DIALOG CONTAINER -->
+      <div id="error-container" class="hidden max-w-md w-full mx-auto mt-4 p-4 bg-red-50 text-red-850 text-xs rounded border border-red-100 flex items-start space-x-2.5 shadow-sm fade-in font-sans">
+        <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 shrink-0"></i>
+        <div class="space-y-1">
+          <h4 class="font-bold uppercase tracking-wide">An Error Occurred</h4>
+          <p id="error-message"></p>
+        </div>
+      </div>
+
+      <!-- STEP 3: WORKSPACE SCREEN (EBOOK WORKSPACE in Editorial theme) -->
+      <section id="workspace-reader" class="hidden w-full space-y-6 fade-in">
+        
+        <!-- Controls bar: Play/Pause/Stop | speed slider | voice select | page nav (PDFs only) -->
+        <div class="sticky top-2 z-20 bg-[#F0EDE8] text-stone-900 rounded border border-[#D1CDC7] p-4 md:p-5 flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm">
+          
+          <!-- Play/Pause/Stop Media Buttons -->
+          <div class="flex items-center space-x-3 order-1 md:order-none">
+            <button id="btn-stop" class="p-2.5 bg-white hover:bg-[#FDFBF7] border border-[#D1CDC7] text-stone-700 hover:text-stone-950 rounded transition shadow-sm active:scale-95 flex items-center justify-center" title="Stop Playback">
+              <i data-lucide="square" class="w-4 h-4 fill-current"></i>
+            </button>
+            <button id="btn-play" class="p-3 bg-stone-950 hover:bg-stone-800 text-white rounded transition shadow-sm active:scale-95 flex items-center justify-center w-11 h-11" title="Play / Pause">
+              <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+            </button>
+            <button id="btn-next-sentence" class="p-2.5 bg-white hover:bg-[#FDFBF7] border border-[#D1CDC7] text-stone-700 hover:text-stone-950 rounded transition shadow-sm active:scale-95 flex items-center justify-center" title="Skip to next sentence">
+              <i data-lucide="skip-forward" class="w-4 h-4 fill-current"></i>
+            </button>
+          </div>
+
+          <!-- Speed Slider Rate Controller -->
+          <div class="flex items-center space-x-3 w-full md:w-auto max-w-xs flex-1">
+            <span class="text-[11px] font-bold text-stone-600 uppercase tracking-wider shrink-0">Speed</span>
+            <input type="range" id="rate-range" min="0.5" max="2.0" step="0.1" value="1.0" class="flex-grow accent-stone-900 h-1 bg-[#E0DCD6] rounded cursor-pointer" />
+            <span id="rate-display" class="px-2 py-0.5 bg-white border border-[#D1CDC7] text-stone-900 font-bold text-xs rounded-sm shrink-0 min-w-[40px] text-center">1.0×</span>
+          </div>
+
+          <!-- Voice Selection -->
+          <div class="flex items-center space-x-2 w-full md:w-auto max-w-xs">
+            <span class="text-[11px] font-bold text-stone-600 uppercase tracking-wider shrink-0">Voice</span>
+            <div class="relative flex-1 col-span-2">
+              <select id="voice-select" class="w-full bg-white hover:bg-[#FDFBF7] border border-[#D1CDC7] rounded px-3 py-1.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900 transition appearance-none pr-8 font-medium">
+                <!-- Populated dynamically -->
+              </select>
+              <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-stone-500">
+                <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+              </div>
+              <div id="voice-status" class="absolute left-0 top-full mt-1 text-[10px] text-stone-500 whitespace-nowrap"></div>
+            </div>
+          </div>
+
+          <!-- Page navigation (PDFs only) -->
+          <div id="pdf-navigation" class="flex items-center space-x-2 w-full md:w-auto justify-center md:justify-end">
+            <button id="btn-prev-page" class="p-2 bg-white hover:bg-[#FDFBF7] text-stone-900 border border-[#D1CDC7] rounded transition disabled:opacity-30 disabled:cursor-not-allowed shadow-sm active:scale-95" title="Previous Page">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <span id="pager-stat-label" class="text-xs font-serif italic text-stone-900 px-3 min-w-[70px] text-center font-bold tracking-wide">
+              01 / 01
+            </span>
+            <button id="btn-next-page" class="p-2 bg-white hover:bg-[#FDFBF7] text-stone-900 border border-[#D1CDC7] rounded transition disabled:opacity-30 disabled:cursor-not-allowed shadow-sm active:scale-95" title="Next Page">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- PDF canvas or image viewer (full width, bordered) -->
+        <div class="bg-[#FDFBF7] border border-[#D1CDC7] rounded p-4 md:p-8 shadow-sm flex flex-col justify-center items-center min-h-[420px] relative overflow-hidden">
+          <div id="visual-viewer-container" class="w-full h-full flex items-center justify-center overflow-auto custom-scrollbar">
+            <!-- Canvas or Img lives here -->
+          </div>
+          <!-- Floating doc-stats at bottom of viewer -->
+          <div class="absolute bottom-2 right-4 text-[10px] text-stone-400 font-mono tracking-wider" id="debug-stats">
+            <!-- stats loaded -->
+          </div>
+        </div>
+
+        <!-- "Now reading" bar pinned below viewer (always visible when reader is open) -->
+        <div id="now-reading-bar" class="bg-[#FAC775]/15 border border-[#FAC775]/45 rounded-lg p-5 flex flex-col space-y-2 shadow-sm transition-all">
+          <div class="flex items-center justify-between border-b border-[#FAC775]/30 pb-2">
+            <span class="text-[11px] font-bold uppercase tracking-widest text-[#412402] flex items-center">
+              <i data-lucide="audio-lines" class="w-4 h-4 mr-1.5 animate-pulse text-[#412402]"></i>
+              Now Reading
+            </span>
+            <span id="page-counter-label" class="text-xs font-serif italic text-[#412402]">Page 1</span>
+          </div>
+          <div id="now-reading-text" class="flex flex-wrap items-center justify-center py-2 min-h-[48px] text-center leading-relaxed">
+            <span class="text-stone-400 italic">No document parsed...</span>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Footer Copyright Branding (Editorial styled) -->
+    <footer class="py-6 bg-[#F7F3EE] border-t border-black/10 text-[#8C8882] text-center text-xs shrink-0 select-none pb-8">
+      <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between space-y-2 md:space-y-0 text-[11px] font-medium uppercase tracking-wide">
+        <p>&copy; 2026 eBook Reader. Client-side Text-to-Speech & OCR sandbox.</p>
+        <div class="flex items-center space-x-3 text-stone-500">
+          <span class="flex items-center"><span class="w-1.5 h-1.5 bg-stone-900 rounded-full mr-1.5 animate-pulse"></span> Sandbox Local Active</span>
+        </div>
+      </div>
+    </footer>
+
+    <!-- CLIENT SCRIPT HANDLER -->
+    <script>
+      // Set PDF.js Global Worker source URL
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '../../vendor/pdf.worker.min.js';
+
+      // Application State
+      const state = {
+        file: null,
+        fileName: '',
+        fileType: '',
+        pagesText: [],      // Array of complete cleaned strings for each page
+        allWords: [],       // Consolidated string words list across all pages
+        pageWordIndices: [],// Start and count references for mapping back to page numbers
+        wordPositions: [],  // [{ word, pageIndex, x, y, w, h }, ...] flat array aligned 1:1 with allWords
+        currentPage: 1,
+        
+        // TTS Playback status state
+        isPlaying: false,
+        isPaused: false,
+        currentWordIndex: 0,
+        currentUtterance: null,
+        speechToken: 0,
+        hlEnd: 0,
+        blockEnd: [],
+        rafId: 0,
+        naturalSrc: null,
+        prefetch: null,
+        fallbackTimer: null,
+        mode: '',           // 'pdf' | 'md' | 'image'
+        pdfDoc: null,
+        mdNode: null,
+        wordEls: [],
+        activeEls: [],
+        imageUrl: null
+      };
+
+      // Voice lists
+      let voices = [];
+
+      // UI Element references
+      const elUploadSection = document.getElementById('workspace-upload');
+      const elProcessingSection = document.getElementById('workspace-processing');
+      const elReaderSection = document.getElementById('workspace-reader');
+      const elHeaderReset = document.getElementById('header-reset');
+      const elTopFilename = document.getElementById('top-filename');
+      
+      const elDropZone = document.getElementById('drop-zone');
+      const elFileInput = document.getElementById('file-input');
+      const elErrorContainer = document.getElementById('error-container');
+      const elErrorMessage = document.getElementById('error-message');
+      
+      const elProcFileName = document.getElementById('processing-file-name');
+      const elProcThumbnail = document.getElementById('processing-thumbnail');
+      const elProgressBarFill = document.getElementById('progress-bar-fill');
+      const elProcStageText = document.getElementById('processing-stage');
+      const elProcPctText = document.getElementById('processing-pct');
+      
+      const elVoiceSelect = document.getElementById('voice-select');
+      const elRateRange = document.getElementById('rate-range');
+      const elRateDisplay = document.getElementById('rate-display');
+      
+      const elVisualViewerContainer = document.getElementById('visual-viewer-container');
+      const elPdfNavigation = document.getElementById('pdf-navigation');
+      const elPageCounterLabel = document.getElementById('page-counter-label');
+      const elPagerStatLabel = document.getElementById('pager-stat-label');
+      const elDebugStats = document.getElementById('debug-stats');
+      
+      const elNowReadingBar = document.getElementById('now-reading-bar');
+      const elNowReadingText = document.getElementById('now-reading-text');
+      
+      const elBtnPrevPage = document.getElementById('btn-prev-page');
+      const elBtnNextPage = document.getElementById('btn-next-page');
+      const elBtnPlay = document.getElementById('btn-play');
+      const elBtnNext = document.getElementById('btn-next-sentence');
+      const elBtnStop = document.getElementById('btn-stop');
+      const elBtnResetHeader = document.getElementById('btn-reset-header');
+      
+
+      // Initialize speech voice options
+      const NATURAL_VOICES = [
+        ['af_heart', 'Heart (US, female)'], ['af_bella', 'Bella (US, female)'], ['af_nicole', 'Nicole (US, female)'],
+        ['am_michael', 'Michael (US, male)'], ['am_fenrir', 'Fenrir (US, male)'],
+        ['bf_emma', 'Emma (UK, female)'], ['bm_george', 'George (UK, male)']
+      ];
+
+      function populateSpeechVoices() {
+        const previous = elVoiceSelect.value;
+        voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+        elVoiceSelect.innerHTML = '';
+
+        const natural = document.createElement('optgroup');
+        natural.label = 'Natural AI voices (offline, big first download)';
+        NATURAL_VOICES.forEach(([id, label]) => {
+          const opt = document.createElement('option');
+          opt.value = 'k:' + id;
+          opt.textContent = 'Natural - ' + label;
+          natural.appendChild(opt);
+        });
+        elVoiceSelect.appendChild(natural);
+
+        const english = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
+        const list = english.length > 0 ? english : voices;
+        const system = document.createElement('optgroup');
+        system.label = 'System voices';
+        if (list.length === 0) {
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'Default Browser Narrator';
+          system.appendChild(opt);
+        }
+        list.forEach(voice => {
+          const opt = document.createElement('option');
+          opt.value = voice.name;
+          opt.textContent = `${voice.name} (${voice.lang})`;
+          system.appendChild(opt);
+        });
+        elVoiceSelect.appendChild(system);
+
+        if (previous && [...elVoiceSelect.options].some(o => o.value === previous)) elVoiceSelect.value = previous;
+        else elVoiceSelect.value = 'k:af_heart';
+      }
+
+      // Hook up Voice Synthesis events
+      populateSpeechVoices();
+      if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = populateSpeechVoices;
+
+      // Pasted text (markdown) support
+      function handlePastedText(text) {
+        if (!text || !text.trim()) return;
+        handleFile(new File([text], 'Pasted text.md', { type: 'text/markdown' }));
+      }
+
+      document.getElementById('btn-read-pasted').addEventListener('click', () => {
+        const input = document.getElementById('paste-input');
+        if (!input.value.trim()) { showError("Paste some text into the box first."); return; }
+        handlePastedText(input.value);
+        input.value = '';
+      });
+
+      // Ctrl/Cmd+V anywhere on the landing screen (outside the textarea) loads clipboard content
+      document.addEventListener('paste', (e) => {
+        if (elUploadSection.classList.contains('hidden')) return;
+        if (e.target && e.target.id === 'paste-input') return;
+        const files = e.clipboardData && e.clipboardData.files;
+        if (files && files.length > 0) { e.preventDefault(); handleFile(files[0]); return; }
+        const text = e.clipboardData && e.clipboardData.getData('text/plain');
+        if (text && text.trim()) { e.preventDefault(); handlePastedText(text); }
+      });
+
+      // Drag & Drop Event Handlers
+      elDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        elDropZone.classList.add('border-amber-500', 'bg-amber-50/10');
+      });
+
+      elDropZone.addEventListener('dragleave', () => {
+        elDropZone.classList.remove('border-amber-500', 'bg-amber-50/10');
+      });
+
+      elDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        elDropZone.classList.remove('border-amber-500', 'bg-amber-50/10');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFile(files[0]);
+        }
+      });
+
+      elDropZone.addEventListener('click', () => {
+        elFileInput.click();
+      });
+
+      elFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          handleFile(e.target.files[0]);
+        }
+      });
+
+      // Identify supported document kinds
+      function detectKind(file) {
+        const name = (file.name || '').toLowerCase();
+        const type = file.type || '';
+        if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+        if (/\.(md|markdown|mdown|mkd|txt)$/.test(name) || type === 'text/markdown' || type === 'text/plain') return 'md';
+        if (/\.(html?|xhtml)$/.test(name) || type === 'text/html') return 'html';
+        if (type.startsWith('image/')) return 'image';
+        return null;
+      }
+
+      // Dispatch file processing based on extension / metadata type
+      function handleFile(file) {
+        elErrorContainer.classList.add('hidden');
+        const kind = detectKind(file);
+
+        if (!kind) {
+          showError("Unsupported file type. Please upload a PDF, an HTML page, a Markdown (.md) or text file, or an image (JPEG, PNG, WEBP).");
+          return;
+        }
+
+        stopSpeech();
+        resetDocumentState();
+        state.file = file;
+        state.fileName = file.name;
+        state.fileType = file.type;
+        // HTML renders through the same flowing-text path as Markdown
+        state.mode = (kind === 'html') ? 'md' : kind;
+        state.sourceKind = kind;
+
+        // Transitions step
+        elUploadSection.classList.add('hidden');
+        elProcessingSection.classList.remove('hidden');
+        elProcFileName.textContent = file.name;
+
+        updateProgress(0, "Reading document structure...");
+        renderProcessingDocThumbnail(file, kind);
+
+        if (kind === 'pdf') {
+          processPDFDocument(file);
+        } else if (kind === 'md') {
+          processMarkdownDocument(file);
+        } else if (kind === 'html') {
+          processHTMLDocument(file);
+        } else {
+          processImageOCR(file);
+        }
+      }
+
+      // Show temporary thumbnail view as a progress loader feedback
+      async function renderProcessingDocThumbnail(file, kind) {
+        elProcThumbnail.innerHTML = '';
+        elProcThumbnail.classList.remove('hidden');
+
+        if (kind === 'pdf') {
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const page = await pdf.getPage(1);
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            const viewport = page.getViewport({ scale: 0.25 });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({ canvasContext: context, viewport }).promise;
+
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL();
+            img.className = 'w-16 h-20 object-cover rounded shadow border border-stone-200';
+            elProcThumbnail.appendChild(img);
+          } catch (e) {
+            renderFallbackThumbIcon("file-text", "red");
+          }
+        } else if (kind === 'md') {
+          renderFallbackThumbIcon("file-text", "stone");
+        } else if (kind === 'html') {
+          renderFallbackThumbIcon("file-code", "stone");
+        } else {
+          try {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.className = 'w-16 h-16 object-cover rounded shadow border border-stone-200';
+            elProcThumbnail.appendChild(img);
+          } catch (e) {
+            renderFallbackThumbIcon("image", "amber");
+          }
+        }
+      }
+
+      function renderFallbackThumbIcon(iconName, colorClass) {
+        elProcThumbnail.innerHTML = `
+          <div class="w-16 h-20 flex flex-col items-center justify-center bg-${colorClass}-50 text-${colorClass}-600 rounded shadow border border-${colorClass}-100">
+            <i data-lucide="${iconName}" class="w-8 h-8"></i>
+          </div>
+        `;
+        lucide.createIcons();
+      }
+
+      // Display an clean user-facing error message
+      function showError(msg) {
+        elErrorMessage.textContent = msg;
+        elErrorContainer.classList.remove('hidden');
+        elProcessingSection.classList.add('hidden');
+        elUploadSection.classList.remove('hidden');
+        state.file = null;
+      }
+
+      // Update loading status feedback
+      function updateProgress(percentage, text) {
+        elProgressBarFill.style.width = `${percentage}%`;
+        elProcPctText.textContent = `${percentage}%`;
+        elProcStageText.textContent = text;
+      }
+
+      // Built-in basic English dictionary for OCR word validation
+      const COMMON_WORDS = new Set([
+        // Single letter words:
+        "a", "i",
+
+        // 2-letter words:
+        "am", "an", "as", "at", "be", "by", "do", "go", "he", "if", "in", "is", "it", "me", "my", "no", "of", "on", "or", "so", "to", "up", "us", "we", "hi", "ox", "by", "if", "to", "go", "me", "my", "no", "of", "on", "or", "so", "up", "us", "we",
+
+        // 3-letter words:
+        "act", "add", "all", "and", "any", "are", "bad", "bar", "bat", "bed", "big", "bit", "box", "boy", "bus", "but", "buy", "can", "car", "cat", "cow", "cry", "cup", "cut", "dad", "day", "did", "die", "dig", "dog", "dot", "dry", "due", "ear", "eat", "end", "era", "eye", "far", "fat", "few", "fit", "fix", "fly", "for", "fox", "fun", "fur", "gas", "get", "god", "gum", "gun", "guy", "had", "has", "hat", "her", "him", "his", "hit", "hot", "how", "ice", "ill", "its", "jaw", "jet", "job", "joy", "key", "kid", "lab", "lad", "law", "lay", "led", "leg", "let", "lid", "lie", "lip", "lit", "log", "low", "mad", "man", "map", "mat", "may", "men", "met", "mix", "mom", "mud", "mug", "net", "new", "nod", "not", "now", "nut", "oak", "odd", "off", "oil", "old", "one", "our", "out", "own", "pad", "pan", "pay", "pen", "pet", "pie", "pig", "pin", "pot", "pry", "pub", "rag", "ran", "raw", "ray", "red", "rib", "rid", "rip", "rob", "rod", "rub", "run", "sad", "sat", "saw", "say", "sea", "see", "set", "sew", "she", "shy", "sin", "sip", "sir", "sit", "six", "ski", "sky", "sly", "son", "spy", "sub", "sun", "tap", "tax", "tea", "ten", "the", "thy", "tie", "tin", "tip", "toe", "ton", "top", "toy", "try", "tub", "two", "use", "van", "vet", "via", "war", "was", "way", "web", "wed", "wet", "who", "why", "wig", "win", "wit", "won", "yes", "yet", "zip",
+
+        // Common 4+ letter words specifically:
+        "this", "that", "them", "then", "they", "with", "from", "each", "were", "been", "some", "good", "make", "time", "into", "your", "only", "come", "more", "over", "some", "here", "work", "word", "copy", "book", "read", "page", "text", "very", "also", "file", "many", "even", "most", "back", "well", "down", "same", "love", "life",
+        "about", "above", "after", "again", "against", "all", "also", "always", "another", "any", "around", "away", "because", "before", "began", "between", "both", "called", "came", "cannot", "change", "checked", "class", "clear", "close", "come", "could", "course", "day", "days", "enough", "even", "every", "eyes", "face", "fact", "feel", "find", "first", "five", "following", "form", "found", "four", "gave", "general", "give", "given", "great", "group", "half", "hand", "hands", "head", "hear", "heard", "held", "himself", "home", "house", "however", "important", "interest", "java", "just", "keep", "kind", "knew", "known", "land", "large", "last", "later", "least", "left", "less", "light", "like", "line", "little", "long", "looked", "made", "matter", "mean", "might", "mind", "mother", "much", "must", "name", "near", "never", "next", "night", "nothing", "number", "often", "once", "open", "order", "others", "people", "place", "point", "program", "put", "reader", "right", "room", "said", "school", "second", "seem", "seemed", "sent", "several", "shall", "should", "show", "side", "since", "small", "something", "soon", "sound", "still", "success", "such", "sure", "take", "together", "took", "toward", "turn", "turned", "under", "until", "upon", "voice", "walked", "want", "wanted", "whether", "which", "while", "white", "whole", "will", "within", "without", "world", "would", "year", "years", "young"
+      ]);
+
+      // Evaluation heuristic to filter potential spacing merge actions
+      function shouldKeepMerged(merged, originalTokens) {
+        const mergedLower = merged.toLowerCase();
+        
+        // If the merged word is a recognized common English word, keep it
+        if (COMMON_WORDS.has(mergedLower)) {
+          return true;
+        }
+        
+        // Visual/phonetic English-like heuristic check
+        const hasVowel = /[aeiouyAEIOUY]/.test(merged);
+        const lengthMatch = merged.length > 2;
+        const isTooConsonantly = /[bcdfghjklmnpqrstvwxz]{4,}/i.test(merged);
+        const isEnglishLike = hasVowel && lengthMatch && !isTooConsonantly;
+        
+        if (isEnglishLike) {
+          // If the components are both individually valid common English words (e.g. "a" and "book")
+          // then keeping them separate is safer than joining them into "abook".
+          if (originalTokens.length === 2) {
+            const t1 = originalTokens[0].toLowerCase();
+            const t2 = originalTokens[1].toLowerCase();
+            if (COMMON_WORDS.has(t1) && COMMON_WORDS.has(t2)) {
+              return false; // Keep them separate!
+            }
+          }
+          return true;
+        }
+        
+        return false;
+      }
+
+      // OCR post-processing function to fix spacing artifacts
+      function postProcessOCRText(rawText) {
+        if (!rawText) return "";
+
+        // Normalize character representations
+        let normalized = rawText
+          .replace(/[\u2018\u2019]/g, "'")
+          .replace(/[\u201C\u201D]/g, '"')
+          .replace(/[\u2013\u2014]/g, '-');
+
+        // Step 4: Split into paragraphs by blank lines (double newlines or more)
+        const paragraphs = normalized.split(/\n\s*\n+/);
+
+        const processedParagraphs = paragraphs.map(p => {
+          // Join mid-paragraph line breaks (single newlines) into spaces
+          let cleanParagraph = p.replace(/\n/g, ' ');
+
+          // Normalize multiple consecutive spaces into one
+          cleanParagraph = cleanParagraph.replace(/\s+/g, ' ').trim();
+
+          // Step 1: Remove spaces between individual characters that form a word.
+          // Specifically: replace any single character followed by a space and another single character (repeating)
+          let step1 = cleanParagraph;
+          let prevText;
+          do {
+            prevText = step1;
+            step1 = step1.replace(/\b([a-zA-Z0-9])\s+(?=[a-zA-Z0-9]\b)/gi, '$1');
+          } while (step1 !== prevText);
+
+          // Use regex to collapse patterns like "T hi s" -> "This" and "c opy" -> "copy".
+          // Match single character followed by larger block or vice versa
+          step1 = step1.replace(/\b([a-zA-Z0-9])\s+([a-zA-Z0-9]{2,})\b/gi, (match, left, right) => {
+            const merged = left + right;
+            if (shouldKeepMerged(merged, [left, right])) {
+              return merged;
+            }
+            return match;
+          });
+
+          step1 = step1.replace(/\b([a-zA-Z0-9]{2,})\s+([a-zA-Z0-9])\b/gi, (match, left, right) => {
+            const merged = left + right;
+            if (shouldKeepMerged(merged, [left, right])) {
+              return merged;
+            }
+            return match;
+          });
+
+          // Step 2: Fix over-spaced words by merging tokens that are likely one word.
+          // Split text into tokens (words and punctuation)
+          const tokenRegex = /[a-zA-Z0-9']+|[^a-zA-Z0-9\s]/g;
+          const tokens = step1.match(tokenRegex) || [];
+
+          const resultTokens = [];
+          let idx = 0;
+
+          while (idx < tokens.length) {
+            let token = tokens[idx];
+            const isPunc = /[^a-zA-Z0-9']/.test(token);
+
+            if (isPunc || token.length > 2) {
+              resultTokens.push(token);
+              idx++;
+            } else {
+              // Start a potential merge run of consecutive `<= 2` tokens
+              let run = [token];
+              let nextIdx = idx + 1;
+              while (nextIdx < tokens.length) {
+                const nextToken = tokens[nextIdx];
+                const isNextPunc = /[^a-zA-Z0-9']/.test(nextToken);
+                if (isNextPunc || nextToken.length > 3) {
+                  break;
+                }
+                run.push(nextToken);
+                nextIdx++;
+              }
+
+              const merged = run.join('');
+
+              // Verify Step 3: validate using dictionary/heuristics
+              if (run.length > 1 && shouldKeepMerged(merged, run)) {
+                resultTokens.push(merged);
+              } else {
+                run.forEach(t => resultTokens.push(t));
+              }
+              idx = nextIdx;
+            }
+          }
+
+          // Step 3 (Second Pass): run a word-by-word merge heuristic check on adjacent tokens
+          let mergedTokens = [...resultTokens];
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (let k = 0; k < mergedTokens.length - 1; k++) {
+              const t1 = mergedTokens[k];
+              const t2 = mergedTokens[k + 1];
+
+              // Skip punctuation
+              if (/[^a-zA-Z0-9']/.test(t1) || /[^a-zA-Z0-9']/.test(t2)) {
+                continue;
+              }
+
+              const merged = t1 + t2;
+              const mergedLower = merged.toLowerCase();
+
+              let shouldMerge = false;
+              if (COMMON_WORDS.has(mergedLower)) {
+                shouldMerge = true;
+              } else if (t1.length <= 2 || t2.length <= 2) {
+                shouldMerge = shouldKeepMerged(merged, [t1, t2]);
+              }
+
+              if (shouldMerge) {
+                mergedTokens.splice(k, 2, merged);
+                changed = true;
+                break;
+              }
+            }
+          }
+
+          // Reconstruct paragraph joining words cleanly with standard spaces
+          let paragraphText = "";
+          for (let k = 0; k < mergedTokens.length; k++) {
+            const tok = mergedTokens[k];
+            const isPunc = /[^a-zA-Z0-9']/.test(tok);
+            if (k === 0) {
+              paragraphText += tok;
+            } else {
+              if (isPunc) {
+                paragraphText += tok;
+              } else {
+                paragraphText += " " + tok;
+              }
+            }
+          }
+
+          // Refine spacing before punctuation marks
+          paragraphText = paragraphText
+            .replace(/\s+([.,;:?!'])/g, '$1')
+            .replace(/([$])\s+/g, '$1');
+
+          return paragraphText.trim();
+        });
+
+        // Join paragraphs with double newlines
+        return processedParagraphs.filter(p => p.length > 0).join('\n\n');
+      }
+
+      // Pretokenise parsed layout text to support highlighting individual click span matches
+      function tokenizeFullText(text) {
+        if (!text || !text.trim()) {
+          return { tokens: [], fullText: "" };
+        }
+        
+        // Clean characters for clean alignment during Speech Synthesis
+        // Convert smart quotes/dashes to normal ones to ensure SpeechSynthesisUtterance matching offsets
+        let normalized = text
+          .replace(/[\u2018\u2019]/g, "'")
+          .replace(/[\u201C\u201D]/g, '"')
+          .replace(/[\u2013\u2014]/g, '-');
+
+        const parts = normalized.split(/(\s+)/);
+        let charOffset = 0;
+        const tokens = [];
+        let wordCount = 0;
+        
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          if (part.length === 0) continue;
+          
+          const isSpace = /^\s+$/.test(part);
+          if (isSpace) {
+            tokens.push({
+              type: 'space',
+              text: part,
+              charStart: charOffset,
+              charEnd: charOffset + part.length
+            });
+          } else {
+            tokens.push({
+              type: 'word',
+              text: part,
+              charStart: charOffset,
+              charEnd: charOffset + part.length,
+              wordIndex: wordCount
+            });
+            wordCount++;
+          }
+          charOffset += part.length;
+        }
+        return { tokens, fullText: normalized };
+      }
+
+      // Helper to truncate filename elegantly
+      function truncateFilename(name, maxLen) {
+        if (!name) return "";
+        if (name.length <= maxLen) return name;
+        const extIndex = name.lastIndexOf('.');
+        if (extIndex === -1) return name.slice(0, maxLen - 3) + '...';
+        const ext = name.slice(extIndex);
+        const base = name.slice(0, extIndex);
+        const charsLeft = maxLen - ext.length - 3;
+        if (charsLeft <= 0) return name.slice(0, maxLen - 3) + '...';
+        return base.slice(0, charsLeft) + '...' + ext;
+      }
+
+      // Helper to normalize characters standardly
+      function normalizeText(text) {
+        if (!text) return "";
+        return text
+          .replace(/[\u2018\u2019]/g, "'")
+          .replace(/[\u201C\u201D]/g, '"')
+          .replace(/[\u2013\u2014]/g, '-');
+      }
+
+      // Core parser for PDF document formats
+      async function processPDFDocument(file) {
+        try {
+          updateProgress(5, "Resolving document container...");
+          const arrayBuffer = await file.arrayBuffer();
+          
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          const totalPages = pdf.numPages;
+          const extractedPagesText = [];
+          const extractedPagesWordPositions = [];
+          
+          updateProgress(10, `Accessing structured PDF indexing (${totalPages} pages total)...`);
+          
+          for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+            updateProgress(
+              10 + Math.round(((pageNum - 1) / totalPages) * 80), 
+              `Extracting text from page ${pageNum} of ${totalPages}...`
+            );
+            
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            let pageText = textContent.items.map(item => item.str).join(' ');
+            
+            // Clean consecutive spaces
+            pageText = pageText.replace(/\s+/g, ' ').trim();
+            
+            // Analyze density counts. Fallback to Tesseract OCR if scanned
+            const totalWords = pageText.split(/\s+/).filter(w => w.length > 0).length;
+            const pageWordsPositions = [];
+            const viewport = page.getViewport({ scale: 1.5 });
+            
+            if (totalWords >= 3) {
+              // Extract positions of each word (width split proportionally by character count)
+              for (const item of textContent.items) {
+                const str = item.str || "";
+                if (!str.trim()) continue;
+                const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+                const h = Math.abs(item.height ? item.height * viewport.scale : tx[3]) || 10;
+                const totalW = item.width * viewport.scale;
+                for (const m of str.matchAll(/\S+/g)) {
+                  pageWordsPositions.push({
+                    word: m[0],
+                    pageIndex: pageNum,
+                    x: tx[4] + totalW * (m.index / str.length),
+                    y: tx[5] - h,
+                    w: totalW * (m[0].length / str.length),
+                    h: h
+                  });
+                }
+              }
+
+              pageText = pageWordsPositions.map(w => w.word).join(' ');
+              pageText = normalizeText(pageText);
+            } else {
+              updateProgress(
+                10 + Math.round(((pageNum - 0.5) / totalPages) * 80), 
+                `Page ${pageNum} appears scanned. Rendering & running OCR...`
+              );
+              
+              const canvas = document.createElement('canvas');
+              const context = canvas.getContext('2d');
+              const ocrViewport = page.getViewport({ scale: 2.0 }); // High resolution scale for OCR
+              canvas.height = ocrViewport.height;
+              canvas.width = ocrViewport.width;
+              
+              await page.render({ canvasContext: context, viewport: ocrViewport }).promise;
+              
+              // Tesseract engine
+              const ocrResult = await Tesseract.recognize(
+                canvas,
+                'eng',
+                {
+                  logger: m => {
+                    if (m.status === 'recognizing text') {
+                      const completePct = Math.round(m.progress * 100);
+                      const statePct = 10 + Math.round((((pageNum - 1) + m.progress) / totalPages) * 80);
+                      updateProgress(statePct, `OCR Processing Page ${pageNum}: ${completePct}%`);
+                    }
+                  }
+                }
+              );
+              pageText = postProcessOCRText(ocrResult.data.text);
+              
+              const words = pageText.split(/\s+/).filter(w => w.length > 0);
+              for (const w of words) {
+                pageWordsPositions.push({
+                  word: w,
+                  pageIndex: pageNum,
+                  missing: true
+                });
+              }
+            }
+            
+            extractedPagesText.push(pageText);
+            extractedPagesWordPositions.push(pageWordsPositions);
+          }
+          
+          updateProgress(100, "PDF analysis complete!");
+          
+          setTimeout(() => {
+            initializeReaderWorkspace(file.name, extractedPagesText, extractedPagesWordPositions);
+          }, 350);
+          
+        } catch (e) {
+          console.error("PDF Parsing error: ", e);
+          showError(`Failed to process this PDF: ${e.message || e}`);
+        }
+      }
+
+      // Core parser for uploaded classical Images
+      async function processImageOCR(file) {
+        try {
+          updateProgress(10, "Extracting page image buffer...");
+          
+          const ocrResult = await Tesseract.recognize(
+            file,
+            'eng',
+            {
+              logger: m => {
+                if (m.status === 'recognizing text') {
+                  const completePct = Math.round(m.progress * 100);
+                  const statePct = 10 + Math.round(m.progress * 85);
+                  updateProgress(statePct, `OCR Character Recognition: ${completePct}%`);
+                }
+              }
+            }
+          );
+          
+          const pageText = postProcessOCRText(ocrResult.data.text);
+          const pageWordsPositions = [];
+          
+          const words = pageText.split(/\s+/).filter(w => w.length > 0);
+          for (const w of words) {
+            pageWordsPositions.push({
+              word: w,
+              pageIndex: 1,
+              missing: true
+            });
+          }
+          
+          updateProgress(100, "Image OCR complete!");
+          
+          setTimeout(() => {
+            initializeReaderWorkspace(file.name, [pageText], [pageWordsPositions]);
+          }, 350);
+          
+        } catch (e) {
+          console.error("Image OCR error: ", e);
+          showError(`Failed to read characters from this image: ${e.message || e}`);
+        }
+      }
+
+      // Wrap every word inside the rendered markdown in a clickable span (skips code blocks)
+      function wrapMarkdownWords(root) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const textNodes = [];
+        while (walker.nextNode()) {
+          const n = walker.currentNode;
+          if (n.parentElement && n.parentElement.closest('pre')) continue;
+          if (!n.nodeValue.trim()) continue;
+          textNodes.push(n);
+        }
+        const words = [];
+        const els = [];
+        for (const node of textNodes) {
+          const frag = document.createDocumentFragment();
+          for (const part of node.nodeValue.split(/(\s+)/)) {
+            if (!part) continue;
+            if (/^\s+$/.test(part)) {
+              frag.appendChild(document.createTextNode(part));
+            } else {
+              const span = document.createElement('span');
+              span.className = 'md-word';
+              span.dataset.i = String(words.length);
+              span.textContent = part;
+              words.push(part);
+              els.push(span);
+              frag.appendChild(span);
+            }
+          }
+          node.parentNode.replaceChild(frag, node);
+        }
+        return { words, els };
+      }
+
+      // Core parser for Markdown / plain text documents
+      async function processMarkdownDocument(file) {
+        try {
+          updateProgress(20, "Reading file...");
+          const source = await file.text();
+          updateProgress(50, "Rendering markdown...");
+
+          const isPlain = file.name.toLowerCase().endsWith('.txt');
+          const rawHtml = isPlain
+            ? '<p>' + source.replace(/&/g, '&amp;').replace(/</g, '&lt;').split(/\n\s*\n/).join('</p><p>') + '</p>'
+            : marked.parse(source, { gfm: true });
+          const clean = DOMPurify.sanitize(rawHtml);
+
+          const root = document.createElement('div');
+          root.className = 'md-body';
+          root.innerHTML = clean;
+          root.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
+
+          const { words, els } = wrapMarkdownWords(root);
+          if (words.length === 0) throw new Error("No readable text found in this file.");
+
+          root.addEventListener('click', (e) => {
+            const span = e.target.closest('.md-word');
+            if (!span) return;
+            if (span.closest('a')) e.preventDefault();
+            speakWordsFromOffset(parseInt(span.dataset.i, 10));
+          });
+
+          const blockOf = (el) => el.closest('p,li,h1,h2,h3,h4,h5,h6,blockquote,td,th') || root;
+          state.blockEnd = els.map((el, i) => i === els.length - 1 || blockOf(el) !== blockOf(els[i + 1]));
+          state.mdNode = root;
+          state.wordEls = els;
+          updateProgress(100, "Markdown ready!");
+
+          setTimeout(() => {
+            initializeReaderWorkspace(
+              file.name,
+              [words.join(' ')],
+              [words.map(w => ({ word: w, pageIndex: 1, missing: true }))]
+            );
+          }, 250);
+        } catch (e) {
+          console.error("Markdown parsing error: ", e);
+          showError(`Failed to process this file: ${e.message || e}`);
+        }
+      }
+      // Core parser for HTML documents (class notes, saved web pages)
+      async function processHTMLDocument(file) {
+        try {
+          updateProgress(20, "Reading file...");
+          const source = await file.text();
+          updateProgress(45, "Extracting page content...");
+
+          // Parse, then keep the readable body: drop scripts, styles, nav chrome.
+          const parsed = new DOMParser().parseFromString(source, 'text/html');
+          parsed.querySelectorAll('script,style,noscript,iframe,svg,nav,header nav,footer').forEach(n => n.remove());
+          const main = parsed.querySelector('main,article,[role=main]') || parsed.body || parsed.documentElement;
+          const clean = DOMPurify.sanitize(main.innerHTML, { USE_PROFILES: { html: true, mathMl: true } });
+
+          updateProgress(70, "Preparing text...");
+          const root = document.createElement('div');
+          root.className = 'md-body';
+          root.innerHTML = clean;
+          root.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener noreferrer'; });
+          root.querySelectorAll('img').forEach(img => { img.loading = 'lazy'; img.style.maxWidth = '100%'; });
+
+          const { words, els } = wrapMarkdownWords(root);
+          if (words.length === 0) throw new Error("No readable text found in this page.");
+
+          root.addEventListener('click', (e) => {
+            const span = e.target.closest('.md-word');
+            if (!span) return;
+            if (span.closest('a')) e.preventDefault();
+            speakWordsFromOffset(parseInt(span.dataset.i, 10));
+          });
+
+          const blockOf = (el) => el.closest('p,li,h1,h2,h3,h4,h5,h6,blockquote,td,th') || root;
+          state.blockEnd = els.map((el, i) => i === els.length - 1 || blockOf(el) !== blockOf(els[i + 1]));
+          state.mdNode = root;
+          state.wordEls = els;
+          updateProgress(100, "Page ready!");
+
+          setTimeout(() => {
+            initializeReaderWorkspace(
+              file.name,
+              [words.join(' ')],
+              [words.map(w => ({ word: w, pageIndex: 1, missing: true }))]
+            );
+          }, 250);
+        } catch (e) {
+          console.error("HTML parsing error: ", e);
+          showError(`Failed to process this page: ${e.message || e}`);
+        }
+      }
+
+      // Let the desktop hand us a file:  postMessage({type:'open-file', name, mime, buffer})
+      window.addEventListener('message', (e) => {
+        const d = e.data;
+        if (!d || d.type !== 'open-file') return;
+        try {
+          const file = new File([d.buffer], d.name, { type: d.mime || '' });
+          handleFile(file);
+        } catch (err) {
+          showError('Could not open that file: ' + (err.message || err));
+        }
+      });
+      window.parent && window.parent !== window && window.parent.postMessage({ type: 'reader-ready' }, '*');
+
+      // Setup states and open Workspace Screen UI
+      async function initializeReaderWorkspace(fileName, pages, pagesWordPositions) {
+        state.pagesText = pages;
+        state.currentPage = 1;
+        state.fileName = fileName;
+        
+        // Truncate filename & show layout header info
+        elTopFilename.textContent = truncateFilename(fileName, 28);
+        elTopFilename.classList.remove('hidden');
+        elHeaderReset.classList.remove('hidden');
+        
+        // Prepare concatenated word ranges
+        prepareAllWords(pagesWordPositions);
+
+        // Switch panel UI
+        elProcessingSection.classList.add('hidden');
+        elReaderSection.classList.remove('hidden');
+        
+        // Load target page content visual and update labels
+        goToPage(1);
+      }
+
+      // Prepares consolidated list of all words for the TTS system
+      function prepareAllWords(pagesWordPositions) {
+        state.allWords = [];
+        state.wordPositions = [];
+        state.pageWordIndices = [];
+        
+        let startWordIdx = 0;
+        for (let i = 0; i < state.pagesText.length; i++) {
+          const text = state.pagesText[i] || "";
+          
+          // Split by whitespace spaces, filtering empty tokens
+          const words = text.split(/\s+/).filter(w => w.length > 0);
+          state.allWords = state.allWords.concat(words);
+          
+          // Align word positions
+          const positions = pagesWordPositions && pagesWordPositions[i] ? pagesWordPositions[i] : null;
+          if (positions && positions.length === words.length) {
+            state.wordPositions = state.wordPositions.concat(positions);
+          } else {
+            // Create fallback positions
+            const fallback = words.map(w => ({
+              word: w,
+              pageIndex: i + 1,
+              missing: true
+            }));
+            state.wordPositions = state.wordPositions.concat(fallback);
+          }
+          
+          state.pageWordIndices.push({
+            start: startWordIdx,
+            count: words.length,
+            end: startWordIdx + words.length // exclusive boundary
+          });
+          
+          startWordIdx += words.length;
+        }
+      }
+
+      function getPageForWordIndex(wordIdx) {
+        for (let i = 0; i < state.pageWordIndices.length; i++) {
+          const r = state.pageWordIndices[i];
+          if (wordIdx >= r.start && wordIdx < r.end) {
+            return i + 1; // page numbers are 1-indexed
+          }
+        }
+        return 1;
+      }
+      // Cached PDF document so pages don't re-parse the file on every render
+      async function getPdfDoc() {
+        if (!state.pdfDoc) {
+          const buf = await state.file.arrayBuffer();
+          state.pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+        }
+        return state.pdfDoc;
+      }
+
+      let renderToken = 0;
+
+      // Render actual visual viewport (PDF canvas, image, or markdown) with highlights overlay
+      async function renderVisualPage() {
+        if (!elVisualViewerContainer || !state.file) return;
+        const token = ++renderToken;
+        const container = elVisualViewerContainer;
+        container.innerHTML = '';
+
+        if (state.mode === 'md') {
+          container.className = 'w-full max-h-[70vh] overflow-auto custom-scrollbar';
+          container.appendChild(state.mdNode);
+          if (elDebugStats) elDebugStats.textContent = `MARKDOWN | ${state.allWords.length} WORDS`;
+          updateHighlightsAndBar(state.currentWordIndex);
+          return;
+        }
+
+        container.className = 'w-full h-full flex items-center justify-center overflow-auto custom-scrollbar';
+
+        if (state.mode === 'pdf') {
+          try {
+            container.innerHTML = `
+              <div class="flex flex-col items-center justify-center space-y-2 py-10 text-stone-500">
+                <div class="w-8 h-8 border-4 border-stone-300 border-t-stone-900 rounded-full animate-spin"></div>
+                <span class="text-xs font-sans tracking-wide uppercase font-bold text-stone-400">Rendering page view...</span>
+              </div>
+            `;
+
+            const pdf = await getPdfDoc();
+            const page = await pdf.getPage(state.currentPage);
+            if (token !== renderToken) return;
+
+            const viewport = page.getViewport({ scale: 1.5 });
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'relative w-full max-w-[900px] mx-auto';
+
+            const pdfCanvas = document.createElement('canvas');
+            pdfCanvas.id = 'pdf-render-canvas';
+            pdfCanvas.className = 'w-full h-auto border border-[#D1CDC7] shadow-sm bg-white rounded-sm block';
+            pdfCanvas.width = viewport.width;
+            pdfCanvas.height = viewport.height;
+
+            const highlightCanvas = document.createElement('canvas');
+            highlightCanvas.id = 'highlightCanvas';
+            highlightCanvas.className = 'absolute top-0 left-0 w-full h-full pointer-events-none block';
+            highlightCanvas.width = viewport.width;
+            highlightCanvas.height = viewport.height;
+
+            wrapper.appendChild(pdfCanvas);
+            wrapper.appendChild(highlightCanvas);
+
+            await page.render({ canvasContext: pdfCanvas.getContext('2d'), viewport }).promise;
+            if (token !== renderToken) return;
+
+            container.innerHTML = '';
+            container.appendChild(wrapper);
+
+            const toCanvasXY = (e) => {
+              const rect = pdfCanvas.getBoundingClientRect();
+              return [
+                ((e.clientX - rect.left) / rect.width) * pdfCanvas.width,
+                ((e.clientY - rect.top) / rect.height) * pdfCanvas.height
+              ];
+            };
+
+            wrapper.addEventListener('click', (e) => {
+              const [x, y] = toCanvasXY(e);
+              const hit = findWordAtCoordinate(state.currentPage, x, y);
+              if (hit) speakWordsFromOffset(hit.wordIndex);
+            });
+
+            wrapper.addEventListener('mousemove', (e) => {
+              const [x, y] = toCanvasXY(e);
+              wrapper.style.cursor = findWordAtCoordinate(state.currentPage, x, y) ? 'pointer' : 'default';
+            });
+
+            updateHighlightsAndBar(state.currentWordIndex);
+
+            if (elDebugStats) {
+              const range = state.pageWordIndices[state.currentPage - 1];
+              elDebugStats.textContent = `PDF PAGE ${state.currentPage} | ${range ? range.count : 0} WORDS EXTRACTED`;
+            }
+          } catch (e) {
+            console.error("Render Page canvas Error: ", e);
+            if (token === renderToken) {
+              container.innerHTML = `<p class="text-red-600 font-serif text-center p-4">Error loading page: ${e.message}</p>`;
+            }
+          }
+        } else {
+          try {
+            if (!state.imageUrl) state.imageUrl = URL.createObjectURL(state.file);
+            const img = document.createElement('img');
+            img.src = state.imageUrl;
+            img.className = 'max-w-full max-h-[65vh] object-contain border border-[#D1CDC7] shadow-sm bg-white rounded-sm';
+            img.onload = () => {
+              updateHighlightsAndBar(state.currentWordIndex);
+              if (elDebugStats) {
+                const range = state.pageWordIndices[0];
+                elDebugStats.textContent = `IMAGE SOURCE | ${range ? range.count : 0} WORDS EXTRACTED`;
+              }
+            };
+            container.appendChild(img);
+          } catch (e) {
+            console.error("Image load visual error: ", e);
+            container.innerHTML = `<p class="text-red-600 font-serif text-center p-4">Error displaying image: ${e.message}</p>`;
+          }
+        }
+      }
+
+      // Sync and maintain state of Prev and Next button capabilities and page nav visibility
+      function updateNavigationStats() {
+        const total = state.pagesText.length;
+        elPageCounterLabel.textContent = `Page ${state.currentPage} of ${total}`;
+        
+        // Pager numerical indicators format e.g. "01 / 05"
+        const curPad = String(state.currentPage).padStart(2, '0');
+        const totPad = String(total).padStart(2, '0');
+        elPagerStatLabel.textContent = `${curPad} / ${totPad}`;
+        
+        elBtnPrevPage.disabled = state.currentPage === 1;
+        elBtnNextPage.disabled = state.currentPage === total;
+
+        // Hide navigation entirely if document contains only 1 page
+        if (total <= 1) {
+          elPdfNavigation.className = "hidden";
+        } else {
+          elPdfNavigation.className = "flex items-center space-x-2 w-full md:w-auto justify-center md:justify-end";
+        }
+      }
+
+      // Page Navigation functions
+      function goToPage(pageNum) {
+        const total = state.pagesText.length;
+        if (pageNum < 1 || pageNum > total) return;
+        
+        state.currentPage = pageNum;
+        renderVisualPage();
+        updateNavigationStats();
+        
+        // Keep speech aligned or sync starting word indices of newly selected page
+        const range = state.pageWordIndices[pageNum - 1];
+        if (range) {
+          if (state.isPlaying && !state.isPaused) {
+            speakWordsFromOffset(range.start);
+          } else {
+            if (state.isPlaying) stopSpeech(); // paused: drop the old utterance
+            state.currentWordIndex = range.start;
+            updateHighlightsAndBar(state.currentWordIndex);
+          }
+        }
+      }
+
+      elBtnPrevPage.addEventListener('click', () => {
+        goToPage(state.currentPage - 1);
+      });
+
+      elBtnNextPage.addEventListener('click', () => {
+        goToPage(state.currentPage + 1);
+      });
+
+      // Update now reading text bar context with amber highlight and context words
+      function updateNowReadingBar(wordIdx) {
+        if (!elNowReadingText) return;
+        
+        if (!state.allWords || state.allWords.length === 0) {
+          elNowReadingText.innerHTML = `<span class="text-amber-800 italic text-sm">Parsing text content...</span>`;
+          return;
+        }
+        
+        const start = Math.max(0, wordIdx - 3);
+        const end = Math.min(state.allWords.length, Math.max(wordIdx + 9, state.hlEnd + 3));
+        
+        elNowReadingText.innerHTML = '';
+        
+        if (start > 0) {
+          const elEllipsis = document.createElement('span');
+          elEllipsis.className = 'text-stone-400 font-serif text-lg tracking-wide mr-2';
+          elEllipsis.textContent = '...';
+          elNowReadingText.appendChild(elEllipsis);
+        }
+        
+        for (let i = start; i < end; i++) {
+          const wordVal = state.allWords[i];
+          const span = document.createElement('span');
+          span.className = 'font-serif text-lg tracking-wide transition-all mx-1.5 my-1 inline-block select-text py-0.5 rounded';
+          span.textContent = wordVal;
+          
+          if (i >= wordIdx && i < Math.max(state.hlEnd, wordIdx + 1)) {
+            // highlighted in amber (#FAC775 bg, #412402 text)
+            span.className += ' bg-[#FAC775] text-[#412402] font-semibold px-3 py-1 shadow-sm scale-110';
+          } else {
+            span.className += ' text-stone-600 hover:text-stone-900 cursor-pointer';
+            
+            // Allow manual click on words inside the context bar to jump narration there
+            span.addEventListener('click', () => {
+              speakWordsFromOffset(i);
+            });
+          }
+          elNowReadingText.appendChild(span);
+        }
+        
+        if (end < state.allWords.length) {
+          const elEllipsis = document.createElement('span');
+          elEllipsis.className = 'text-stone-400 font-serif text-lg tracking-wide mr-2';
+          elEllipsis.textContent = '...';
+          elNowReadingText.appendChild(elEllipsis);
+        }
+      }
+
+      // Search the clicked coordinate inside the current page's word positions
+      function findWordAtCoordinate(pageIndex, targetX, targetY) {
+        const range = state.pageWordIndices[pageIndex - 1];
+        if (!range) return null;
+        const paddingX = 3;
+        const paddingY = 4;
+        for (let i = range.start; i < range.end; i++) {
+          const pos = state.wordPositions[i];
+          if (!pos || pos.missing) continue;
+          if (
+            targetX >= pos.x - paddingX && targetX <= pos.x + pos.w + paddingX &&
+            targetY >= pos.y - paddingY && targetY <= pos.y + pos.h + paddingY
+          ) {
+            return { ...pos, wordIndex: i };
+          }
+        }
+        return null;
+      }
+
+      // Safe rounded rectangle drawer
+      function drawRoundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(x, y, width, height, radius);
+        } else {
+          ctx.rect(x, y, width, height);
+        }
+      }
+
+      function clearCanvasHighlight() {
+        const hlCanvas = document.getElementById('highlightCanvas');
+        if (hlCanvas) hlCanvas.getContext('2d').clearRect(0, 0, hlCanvas.width, hlCanvas.height);
+      }
+
+      // Draw sentence highlight on the canvas overlay (one box per visual line)
+      function drawCanvasHighlight(wordIdx) {
+        const hlCanvas = document.getElementById('highlightCanvas');
+        if (!hlCanvas) return;
+        const ctx = hlCanvas.getContext('2d');
+        ctx.clearRect(0, 0, hlCanvas.width, hlCanvas.height);
+        if (!(state.isPlaying || state.isPaused)) return;
+
+        const range = state.pageWordIndices[state.currentPage - 1];
+        if (!range) return;
+        const from = Math.max(wordIdx, range.start);
+        const to = Math.min(Math.max(state.hlEnd, wordIdx + 1), range.end);
+
+        // group consecutive positioned words into lines
+        const lines = [];
+        for (let i = from; i < to; i++) {
+          const p = state.wordPositions[i];
+          if (!p || p.missing) continue;
+          const cur = lines[lines.length - 1];
+          if (cur && Math.abs(p.y - cur.y) < p.h * 0.6 && p.x >= cur.maxX - 2) {
+            cur.maxX = Math.max(cur.maxX, p.x + p.w);
+            cur.h = Math.max(cur.h, p.h);
+          } else {
+            lines.push({ minX: p.x, maxX: p.x + p.w, y: p.y, h: p.h });
+          }
+        }
+        if (lines.length === 0) return;
+
+        ctx.fillStyle = 'rgba(250, 199, 117, 0.45)';
+        ctx.strokeStyle = 'rgba(186, 117, 23, 0.6)';
+        ctx.lineWidth = 1;
+        for (const l of lines) {
+          drawRoundRect(ctx, l.minX - 2, l.y - 2, l.maxX - l.minX + 4, l.h + 5, 3);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // Keep the first highlighted line in view
+        const rect = hlCanvas.getBoundingClientRect();
+        const yPx = rect.top + (lines[0].y + lines[0].h / 2) * (rect.height / hlCanvas.height);
+        if (yPx < 150 || yPx > window.innerHeight - 80) {
+          window.scrollBy({ top: yPx - window.innerHeight / 2, behavior: 'smooth' });
+        }
+      }
+
+      function clearMarkdownHighlight() {
+        if (state.activeEls) state.activeEls.forEach(el => el.classList.remove('md-active', 'md-line'));
+        state.activeEls = [];
+      }
+
+      // Highlight the sentence being read inside rendered markdown
+      function highlightMarkdownWord(wordIdx) {
+        clearMarkdownHighlight();
+        if (!(state.isPlaying || state.isPaused)) return;
+        const to = Math.min(Math.max(state.hlEnd, wordIdx + 1), state.wordEls.length);
+        for (let i = wordIdx; i < to; i++) {
+          state.wordEls[i].classList.add('md-active');
+          state.activeEls.push(state.wordEls[i]);
+        }
+        const el = state.wordEls[wordIdx];
+        if (!el) return;
+        const c = elVisualViewerContainer;
+        const r = el.getBoundingClientRect();
+        const cr = c.getBoundingClientRect();
+        if (r.top < cr.top + 40 || r.bottom > cr.bottom - 80) {
+          c.scrollTo({ top: c.scrollTop + (r.top - cr.top) - cr.height / 3, behavior: 'smooth' });
+        }
+        if (r.top < 120 || r.bottom > window.innerHeight - 40) {
+          window.scrollBy({ top: r.top - window.innerHeight / 3, behavior: 'smooth' });
+        }
+      }
+
+      // Check if positions exist for the current word
+      function hasPositionsForCurrentWord(wordIdx) {
+        const pos = state.wordPositions && state.wordPositions[wordIdx];
+        return !!pos && !pos.missing;
+      }
+
+      // Master visibility toggle and highlight orchestrator
+      function updateHighlightsAndBar(wordIdx) {
+        if (state.mode === 'md') {
+          if (elNowReadingBar) elNowReadingBar.classList.add('hidden');
+          highlightMarkdownWord(wordIdx);
+          return;
+        }
+        if (hasPositionsForCurrentWord(wordIdx)) {
+          // Digital PDF text: overlay canvas highlight, hide context bar
+          if (elNowReadingBar) elNowReadingBar.classList.add('hidden');
+          drawCanvasHighlight(wordIdx);
+        } else {
+          // Scanned page or image: fall back to context bar
+          if (elNowReadingBar) elNowReadingBar.classList.remove('hidden');
+          clearCanvasHighlight();
+        }
+        updateNowReadingBar(wordIdx);
+      }
+
+      // ---- Speech engine: chunked so long documents don't stall, with boundary + timer fallback ----
+      const CHUNK_WORDS = 40;
+
+      function clearFallbackTimer() {
+        clearTimeout(state.fallbackTimer);
+        state.fallbackTimer = null;
+      }
+
+      // Move the "current word" pointer, flipping PDF pages if needed
+      function setCurrentWord(idx) {
+        state.currentWordIndex = idx;
+        const pageIdx = getPageForWordIndex(idx);
+        if (pageIdx !== state.currentPage) {
+          state.currentPage = pageIdx;
+          renderVisualPage();
+          updateNavigationStats();
+        } else {
+          updateHighlightsAndBar(idx);
+        }
+      }
+
+      // Play speech synthesiser words list from selected index
+      function speakWordsFromOffset(wordIdx) {
+        if (state.allWords.length === 0) return;
+        if (!window.speechSynthesis && !isNaturalVoice()) {
+          alert("Text-to-speech is not supported in this browser.");
+          return;
+        }
+
+        const token = ++state.speechToken;
+        clearFallbackTimer();
+        stopNatural();
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+
+        state.isPlaying = true;
+        state.isPaused = false;
+        updatePlaybackUI();
+        setCurrentWord(wordIdx);
+
+        // Small delay after cancel() avoids Chrome dropping the next utterance
+        setTimeout(() => {
+          if (token === state.speechToken) speakChunk(wordIdx, token);
+        }, 60);
+      }
+
+      // Choose where a chunk ends, preferring a sentence boundary
+      const ABBREV = /^(e\.g|i\.e|etc|vs|dr|mr|mrs|ms|fig|no|approx|cf)\.$/i;
+
+      // A chunk is one sentence (never crossing a PDF page or markdown block), so the highlight
+      // starts exactly when that sentence's audio starts.
+      function chooseEnd(start, maxWords) {
+        const words = state.allWords;
+        const page = state.pageWordIndices[getPageForWordIndex(start) - 1];
+        const limit = Math.min(start + maxWords, words.length, page ? page.end : words.length);
+        for (let k = start + 1; k <= limit; k++) {
+          const w = words[k - 1];
+          if (state.blockEnd[k - 1]) return k;
+          if (/[.!?]["')\]]*$/.test(w) && !ABBREV.test(w) && k - start >= 3) return k;
+        }
+        if (limit < words.length && limit === start + maxWords) {
+          // very long sentence: split at a clause boundary if possible
+          for (let k = limit; k > start + maxWords / 2; k--) {
+            if (/[,;:]["')\]]*$/.test(words[k - 1])) return k;
+          }
+        }
+        return limit;
+      }
+
+      // Highlight words [start, end) and flip the PDF page if needed
+      function setCurrentRange(start, end) {
+        state.hlEnd = end;
+        setCurrentWord(start);
+      }
+
+      function speakChunk(start, token) {
+        const words = state.allWords;
+        if (start >= words.length) { stopSpeech(); return; }
+        if (isNaturalVoice()) { speakChunkNatural(start, token, true); return; }
+
+        const end = chooseEnd(start, 45);
+        const utterance = new SpeechSynthesisUtterance(words.slice(start, end).join(' '));
+        utterance.rate = parseFloat(elRateRange.value) || 1.0;
+        const voice = voices.find(v => v.name === elVoiceSelect.value);
+        if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
+
+        utterance.onend = () => {
+          if (token !== state.speechToken) return;
+          if (end >= words.length) stopSpeech();
+          else speakChunk(end, token);
+        };
+        utterance.onerror = (err) => {
+          if (token !== state.speechToken) return;
+          if (err.error === 'interrupted' || err.error === 'canceled') return;
+          console.error("Speech Synthesis Utterance Error:", err);
+          stopSpeech();
+        };
+
+        setCurrentRange(start, end);
+        state.currentUtterance = utterance; // keep a reference so it isn't garbage collected mid-speech
+        window.speechSynthesis.speak(utterance);
+      }
+
+      // ---- Natural AI voice (Kokoro, runs locally in the browser) ----
+      let kokoroPromise = null;
+      let audioCtx = null;
+
+      function isNaturalVoice() { return elVoiceSelect.value.startsWith('k:'); }
+      function setVoiceStatus(t) { const el = document.getElementById('voice-status'); if (el) el.textContent = t; }
+
+      // The model runs in a Web Worker so generation never freezes the page
+      const KOKORO_WORKER_SRC = `
+        import { KokoroTTS } from 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm';
+        let ttsPromise = null;
+        const onProgress = (p) => {
+          if (p.status === 'progress' && p.total > 1e6) self.postMessage({ type: 'progress', pct: Math.round(p.loaded / p.total * 100) });
+        };
+        async function getTTS() {
+          if (!ttsPromise) {
+            ttsPromise = (async () => {
+              const repo = 'onnx-community/Kokoro-82M-v1.0-ONNX';
+              // WebGPU is far faster (real-time+); fall back to the smaller WASM build otherwise
+              if (self.navigator && navigator.gpu) {
+                try {
+                  if (await navigator.gpu.requestAdapter()) {
+                    return await KokoroTTS.from_pretrained(repo, { dtype: 'fp32', device: 'webgpu', progress_callback: onProgress });
+                  }
+                } catch (e) { console.warn('WebGPU unavailable, using WASM', e); }
+              }
+              return await KokoroTTS.from_pretrained(repo, { dtype: 'q8', device: 'wasm', progress_callback: onProgress });
+            })();
+          }
+          return ttsPromise;
+        }
+        self.onmessage = async (e) => {
+          const { id, text, voice, speed } = e.data;
+          try {
+            const tts = await getTTS();
+            if (text === null) { self.postMessage({ type: 'ready', id }); return; }
+            const out = await tts.generate(text, { voice, speed });
+            const audio = out.audio;
+            self.postMessage({ type: 'audio', id, audio, sampling_rate: out.sampling_rate }, [audio.buffer]);
+          } catch (err) {
+            ttsPromise = null;
+            self.postMessage({ type: 'error', id, message: String(err && err.message || err) });
+          }
+        };
+      `;
+      let kokoroWorker = null;
+      let kokoroMsgId = 0;
+      const kokoroPending = new Map();
+
+      function callKokoro(payload) {
+        if (!kokoroWorker) {
+          const url = URL.createObjectURL(new Blob([KOKORO_WORKER_SRC], { type: 'text/javascript' }));
+          kokoroWorker = new Worker(url, { type: 'module' });
+          kokoroWorker.onmessage = (e) => {
+            const m = e.data;
+            if (m.type === 'progress') { setVoiceStatus(`Downloading voice model ${m.pct}%`); return; }
+            const p = kokoroPending.get(m.id);
+            if (!p) return;
+            kokoroPending.delete(m.id);
+            if (m.type === 'error') p.reject(new Error(m.message));
+            else p.resolve(m);
+          };
+          kokoroWorker.onerror = (e) => {
+            const err = new Error(e.message || 'Worker failed');
+            kokoroPending.forEach(p => p.reject(err));
+            kokoroPending.clear();
+            try { kokoroWorker.terminate(); } catch (x) {}
+            kokoroWorker = null;
+          };
+        }
+        return new Promise((resolve, reject) => {
+          const id = ++kokoroMsgId;
+          kokoroPending.set(id, { resolve, reject });
+          kokoroWorker.postMessage({ id, ...payload });
+        });
+      }
+
+      function loadKokoro() {
+        if (!kokoroPromise) {
+          setVoiceStatus('Loading natural voice...');
+          kokoroPromise = callKokoro({ text: null }).then(() => { setVoiceStatus(''); })
+            .catch(e => { kokoroPromise = null; throw e; });
+        }
+        return kokoroPromise;
+      }
+
+      function generateNatural(start, end) {
+        const text = state.allWords.slice(start, end).join(' ');
+        const voice = elVoiceSelect.value.slice(2);
+        const speed = parseFloat(elRateRange.value) || 1.0;
+        return loadKokoro().then(() => callKokoro({ text, voice, speed }));
+      }
+
+      function stopNatural() {
+        state.prefetch = null;
+        if (state.naturalSrc) {
+          try { state.naturalSrc.onended = null; state.naturalSrc.stop(); } catch (e) {}
+          state.naturalSrc = null;
+        }
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      }
+
+      async function speakChunkNatural(start, token, first) {
+        const words = state.allWords;
+        if (start >= words.length) { stopSpeech(); return; }
+        try {
+          const job = state.prefetch && state.prefetch.start === start && state.prefetch.token === token ? state.prefetch : null;
+          const end = job ? job.end : chooseEnd(start, first ? 25 : 45);
+          if (!job) setVoiceStatus(kokoroPromise ? 'Preparing speech...' : 'Loading natural voice...');
+          const audio = await (job ? job.promise : generateNatural(start, end));
+          if (token !== state.speechToken) return;
+          setVoiceStatus('');
+
+          if (end < words.length) {
+            const nEnd = chooseEnd(end, 45);
+            state.prefetch = { start: end, end: nEnd, token, promise: generateNatural(end, nEnd) };
+            state.prefetch.promise.catch(() => {});
+          } else {
+            state.prefetch = null;
+          }
+          playNatural(audio, start, end, token);
+        } catch (e) {
+          if (token !== state.speechToken) return;
+          console.error('Natural voice failed, falling back to system voice:', e);
+          setVoiceStatus('Natural voice unavailable - using system voice');
+          const sys = [...elVoiceSelect.options].find(o => !o.value.startsWith('k:'));
+          if (sys) elVoiceSelect.value = sys.value;
+          speakWordsFromOffset(start);
+        }
+      }
+
+      function playNatural(raw, start, end, token) {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended' && !state.isPaused) audioCtx.resume();
+
+        const buf = audioCtx.createBuffer(1, raw.audio.length, raw.sampling_rate);
+        buf.copyToChannel(raw.audio, 0);
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(audioCtx.destination);
+        state.naturalSrc = src;
+
+        src.onended = () => {
+          if (token !== state.speechToken) return;
+          if (end >= state.allWords.length) stopSpeech();
+          else speakChunkNatural(end, token, false);
+        };
+
+        setCurrentRange(start, end); // sentence highlight begins exactly with its audio
+        src.start();
+      }
+
+      function pauseSpeech() {
+        if (isNaturalVoice() && audioCtx) audioCtx.suspend(); else window.speechSynthesis.pause();
+      }
+      function resumeSpeech() {
+        if (isNaturalVoice() && audioCtx) audioCtx.resume(); else window.speechSynthesis.resume();
+      }
+
+      // Sync CSS buttons styled classes on play state alternates
+      function updatePlaybackUI() {
+        const setIcon = (name) => {
+          elBtnPlay.innerHTML = `<i data-lucide="${name}" class="w-5 h-5 fill-current"></i>`;
+        };
+        const base = "p-3 rounded transition active:scale-95 flex items-center justify-center w-11 h-11 ";
+        if (state.isPlaying && !state.isPaused) {
+          setIcon('pause');
+          elBtnPlay.className = base + "bg-emerald-700 hover:bg-emerald-800 text-white shadow-md ring-4 ring-emerald-500/20";
+          elBtnPlay.title = "Pause";
+        } else if (state.isPaused) {
+          setIcon('play');
+          elBtnPlay.className = base + "bg-amber-500 hover:bg-amber-400 text-stone-950 border border-amber-600 shadow-lg ring-4 ring-amber-500/40";
+          elBtnPlay.title = "Resume";
+        } else {
+          setIcon('play');
+          elBtnPlay.className = base + "bg-stone-950 hover:bg-stone-800 text-white shadow-sm";
+          elBtnPlay.title = "Play";
+        }
+        lucide.createIcons();
+      }
+
+      // Stop speech synthesizer block
+      function stopSpeech() {
+        state.speechToken++;
+        clearFallbackTimer();
+        stopNatural();
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+
+        state.isPlaying = false;
+        state.isPaused = false;
+        const range = state.pageWordIndices[state.currentPage - 1];
+        state.currentWordIndex = range ? range.start : 0;
+        updatePlaybackUI();
+
+        clearCanvasHighlight();
+        clearMarkdownHighlight();
+        if (state.allWords.length) updateNowReadingBar(state.currentWordIndex);
+      }
+
+      // Event Listeners for TTS controlsbar
+      elBtnPlay.addEventListener('click', () => {
+        if (state.allWords.length === 0) return;
+        if (!state.isPlaying) {
+          speakWordsFromOffset(state.currentWordIndex);
+        } else if (state.isPaused) {
+          resumeSpeech();
+          state.isPaused = false;
+          updatePlaybackUI();
+        } else {
+          pauseSpeech();
+          state.isPaused = true;
+          updatePlaybackUI();
+        }
+      });
+
+      elBtnNext.addEventListener('click', () => {
+        if (state.allWords.length === 0) return;
+        const next = state.isPlaying ? state.hlEnd : chooseEnd(state.currentWordIndex, 45);
+        if (next >= state.allWords.length) { stopSpeech(); return; }
+        speakWordsFromOffset(next);
+      });
+
+      elBtnStop.addEventListener('click', () => {
+        stopSpeech();
+      });
+
+      // Narrator speed events handling
+      elRateRange.addEventListener('input', () => {
+        elRateDisplay.textContent = `${parseFloat(elRateRange.value).toFixed(1)}×`;
+      });
+
+      elRateRange.addEventListener('change', () => {
+        // Restart from the current word so the new rate applies immediately
+        if (state.isPlaying && !state.isPaused) speakWordsFromOffset(state.currentWordIndex);
+      });
+
+      elVoiceSelect.addEventListener('change', () => {
+        if (isNaturalVoice()) loadKokoro().catch(() => setVoiceStatus('Natural voice unavailable'));
+        if (state.isPlaying && !state.isPaused) speakWordsFromOffset(state.currentWordIndex);
+      });
+
+      // Clear per-document state
+      function resetDocumentState() {
+        if (state.imageUrl) URL.revokeObjectURL(state.imageUrl);
+        state.imageUrl = null;
+        state.pdfDoc = null;
+        state.mdNode = null;
+        state.wordEls = [];
+        state.activeEls = [];
+        state.blockEnd = [];
+        state.hlEnd = 0;
+        state.mode = '';
+        state.pagesText = [];
+        state.allWords = [];
+        state.wordPositions = [];
+        state.pageWordIndices = [];
+        state.currentPage = 1;
+        state.currentWordIndex = 0;
+        renderToken++;
+        if (elVisualViewerContainer) elVisualViewerContainer.innerHTML = '';
+      }
+
+      // Clear document content and revert screen interfaces to selection setup
+      function resetToLandingScreen() {
+        stopSpeech();
+        resetDocumentState();
+        state.file = null;
+        state.fileName = '';
+        state.fileType = '';
+
+        elFileInput.value = '';
+        elTopFilename.textContent = '';
+        elTopFilename.classList.add('hidden');
+
+        elProgressBarFill.style.width = '0%';
+        elProcPctText.textContent = '0%';
+        elProcStageText.textContent = 'Analyzing structure...';
+        elProcThumbnail.innerHTML = '';
+
+        elReaderSection.classList.add('hidden');
+        elProcessingSection.classList.add('hidden');
+        elHeaderReset.classList.add('hidden');
+        elUploadSection.classList.remove('hidden');
+        elErrorContainer.classList.add('hidden');
+      }
+
+      elBtnResetHeader.addEventListener('click', resetToLandingScreen);
+
+      lucide.createIcons();
+
+    </script>
+  </body>
+</html>
