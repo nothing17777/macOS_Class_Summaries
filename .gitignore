@@ -1,0 +1,9 @@
+.DS_Store
+.finder/manifest.json
+
+# Your own notes stay local — add class folders here as you create them.
+# Remove or edit these lines if you want to track your notes in git.
+/*/
+!/docs/
+!/.finder/
+!/Sample Class/

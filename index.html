@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>class_summaries</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230a84ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'/></svg>">
+<link rel="stylesheet" href="./.finder/style.css">
+</head>
+<body>
+
+<div id="wall"><canvas id="wallc"></canvas></div>
+
+<div id="menubar">
+  <span class="applelogo" id="applemenu"></span>
+  <div id="menus" style="display:flex;gap:19px"></div>
+  <div class="spacer"></div>
+  <div class="right">
+    <span class="mi mb-ic" onclick="toggleDark()" id="mb-theme"></span>
+    <span class="mi mb-ic" id="mb-wifi"></span>
+    <span class="mi mb-ic" id="mb-batt"></span>
+    <span class="mi mb-ic" onclick="openSpotlight()" id="mb-search"></span>
+    <span id="clock" class="mi"></span>
+  </div>
+</div>
+
+<div id="desktop"></div>
+
+<div id="ql"><div id="qlbox">
+  <div id="qlhead">
+    <div class="lights"><div class="lt r" onclick="closeQL()"><span>&#10005;</span></div></div>
+    <div class="t" id="qltitle"></div>
+    <button class="btn rd" id="qlread">Read</button>
+  </div>
+  <div id="qlbody"></div>
+</div></div>
+
+<div id="spot"><div id="spotbox">
+  <div id="spotbar"><span class="i" id="spot-ic"></span>
+    <input id="spotin" placeholder="Spotlight Search" autocomplete="off"></div>
+  <div id="spotres"></div>
+</div></div>
+
+<div id="lpad"><div id="lpgrid"></div></div>
+
+<div id="notifs"></div>
+<div id="ctx"></div>
+<div id="dock"></div>
+
+<div id="boot">
+  <div class="logo"><svg viewBox="0 0 170 210" width="74" height="92" fill="#fff" aria-hidden="true">
+    <path d="M137 111c-.3-27 22-40 23-40.7-12.6-18.4-32.2-20.9-39.2-21.2-16.7-1.7-32.6 9.8-41 9.8-8.5 0-21.5-9.6-35.3-9.3-18.2.3-35 10.6-44.4 26.9-18.9 32.8-4.8 81.4 13.6 108 9 13 19.7 27.6 33.8 27.1 13.6-.5 18.8-8.8 35.2-8.8 16.4 0 21 8.8 35.3 8.5 14.6-.2 23.8-13.3 32.7-26.3 10.3-15.1 14.6-29.7 14.8-30.4-.3-.2-28.4-10.9-28.7-43.2zM110 31.6C117.4 22.6 122.4 10.1 121 0c-10.6.4-23.5 7-31.2 15.9-6.9 7.9-12.9 20.6-11.3 32.7 11.9.9 24-6 31.5-17z"/>
+  </svg></div>
+  <div id="bootbar"><i></i></div>
+</div>
+
+<script src="./.finder/icons.js"></script>
+<script src="./.finder/app.js"></script>
+<script>
+  document.getElementById('applemenu').innerHTML = document.querySelector('#boot .logo svg').outerHTML
+    .replace('width="74" height="92"','width="13" height="16"').replace('fill="#fff"','fill="currentColor"');
+  document.getElementById('mb-theme').innerHTML  = ico('moon','mb');
+  document.getElementById('mb-wifi').innerHTML   = ico('wifi','mb');
+  document.getElementById('mb-batt').innerHTML   = ico('battery-medium','mb');
+  document.getElementById('mb-search').innerHTML = ico('search','mb');
+  document.getElementById('spot-ic').innerHTML   = ico('search');
+  document.getElementById('qlread').innerHTML    = ico('book-open','sm')+'Read';
+  document.getElementById('spotin').addEventListener('input',e=>spotResults(e.target.value));
+  document.getElementById('spot').addEventListener('click',e=>{ if(e.target.id==='spot') closeSpot(); });
+  document.getElementById('ql').addEventListener('click',e=>{ if(e.target.id==='ql') closeQL(); });
+  document.getElementById('lpad').addEventListener('click',e=>{ if(e.target.id==='lpad') e.currentTarget.classList.remove('show'); });
+  document.getElementById('desktop').addEventListener('contextmenu',e=>{
+    if(e.target.id==='desktop') ctxMenu(e,null,null);
+  });
+</script>
+</body>
+</html>
